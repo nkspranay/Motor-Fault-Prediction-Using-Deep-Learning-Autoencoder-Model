@@ -1,0 +1,26 @@
+.nav-btn {
+  display: block;
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 10px;
+  background: #f1f5f9;
+  border-radius: 6px;
+}
+
+.nav-btn:hover {
+  background: #d1fae5;
+}
+
+.toggle-btn {
+  padding: 8px 14px;
+  background: #e2e8f0;
+  border-radius: 6px;
+}
+
+.toggle-btn:hover {
+  background: #bbf7d0;
+}
+
+.hidden {
+  display: none;
+}

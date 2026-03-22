@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Motor Dashboard</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+
+<body class="bg-gray-100 text-gray-800">
+
+<div class="flex h-screen">
+
+  <aside class="w-64 bg-white shadow-md p-5 flex flex-col">
+    <h2 class="text-xl font-bold mb-6 text-green-600">Motor AI</h2>
+
+    <button onclick="showPage('dashboard')" class="nav-btn">Dashboard</button>
+    <button onclick="showPage('history')" class="nav-btn">History</button>
+  </aside>
+
+  <div class="flex-1 flex flex-col">
+
+    <header class="bg-gradient-to-r from-green-500 to-green-700 text-white p-4">
+      <h1 class="text-xl font-semibold">Motor Monitoring Dashboard</h1>
+    </header>
+
+    <main class="p-6 overflow-auto flex-1">
+
+      <section id="dashboard" class="page">
+
+        <div id="status" class="mb-4 text-lg font-medium"></div>
+
+        <div id="metrics" class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6"></div>
+
+        <div class="flex gap-3 mb-4 flex-wrap">
+          <button onclick="setMetric('Temperature')" class="toggle-btn">Temperature</button>
+          <button onclick="setMetric('Voltage')" class="toggle-btn">Voltage</button>
+          <button onclick="setMetric('Current')" class="toggle-btn">Current</button>
+          <button onclick="setMetric('Power')" class="toggle-btn">Power</button>
+          <button onclick="setMetric('Vibration')" class="toggle-btn">Vibration</button>
+        </div>
+
+        <div class="bg-white p-6 rounded-xl shadow-md w-full max-w-3xl mx-auto">
+          <canvas id="chart" style="height:300px;"></canvas>
+        </div>
+
+      </section>
+
+      <section id="history" class="page hidden">
+        <h2 class="text-xl mb-4 font-semibold">Fault History</h2>
+        <div id="history-list" class="space-y-3"></div>
+      </section>
+
+    </main>
+
+    <footer class="bg-gradient-to-r from-green-500 to-green-700 text-white text-center p-3 text-sm">
+      © EEE 206,224, 258 — Motor Fault Prediction System
+    </footer>
+
+  </div>
+
+</div>
+
+<script type="module" src="js/app.js"></script>
+
+</body>
+</html>
