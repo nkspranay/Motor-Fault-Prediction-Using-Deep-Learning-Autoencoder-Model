@@ -1,21 +1,41 @@
+"""
+api_server.py
+==============
+FastAPI server for the motor fault detection dashboard.
+Reads from ESP32 via serial, runs autoencoder inference,
+and serves real-time data + fault history to the frontend.
+
+Usage:
+    uvicorn api_server:app --reload --port 8000
+"""
+
+import os
+import csv
+import threading
+import random
+import numpy as np
+import joblib
+import torch
+from torch import nn
+from collections import deque
+from datetime import datetime
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-import threading
-import torch
-import serial
-import numpy as np
-import joblib
-from torch import nn
-from collections import deque
-import csv
-from datetime import datetime
-import os
-import random
+# ─────────────── CONFIG ───────────────────
+PORT        = "COM5"
+BAUD        = 115200
+WINDOW_SIZE = 20
+N_FEATURES  = 6
+INPUT_DIM   = WINDOW_SIZE * N_FEATURES
+HISTORY_MAX = 100
+TREND_WINDOW = 20
+TREND_THRESHOLD = 0.6
 
+FEATURES = ["Voltage", "Current", "Power", "Temperature", "Humidity", "Vibration"]
+
+# ─────────────── APP ──────────────────────
 app = FastAPI()
-
-# ---------------- CORS ----------------
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -24,182 +44,282 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-WINDOW_SIZE = 20
-
-# ---------------- PATHS ----------------
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-model_path = os.path.join(BASE_DIR, "model.pth")
-scaler_path = os.path.join(BASE_DIR, "scaler.pkl")
-threshold_path = os.path.join(BASE_DIR, "threshold.npy")
-feature_thresholds_path = os.path.join(BASE_DIR, "feature_thresholds.npy")
-
-# ---------------- MODEL ----------------
+# ─────────────── MODEL ────────────────────
 class AutoEncoder(nn.Module):
-    def __init__(self):
+    def __init__(self, input_dim: int):
         super().__init__()
-        self.net = nn.Sequential(
-            nn.Linear(WINDOW_SIZE * 5, 64),
-            nn.ReLU(),
-            nn.Linear(64, 32),
-            nn.ReLU(),
-            nn.Linear(32, 64),
-            nn.ReLU(),
-            nn.Linear(64, WINDOW_SIZE * 5)
+        self.encoder = nn.Sequential(
+            nn.Linear(input_dim, 64), nn.ReLU(), nn.Dropout(0.1),
+            nn.Linear(64, 32),        nn.ReLU(),
+            nn.Linear(32, 16),        nn.ReLU(),
         )
-
+        self.decoder = nn.Sequential(
+            nn.Linear(16, 32),        nn.ReLU(),
+            nn.Linear(32, 64),        nn.ReLU(), nn.Dropout(0.1),
+            nn.Linear(64, input_dim), nn.Sigmoid(),
+        )
     def forward(self, x):
-        return self.net(x)
+        return self.decoder(self.encoder(x))
 
-model = AutoEncoder()
+# ─────────────── PATHS ────────────────────
+BASE_DIR               = os.path.dirname(os.path.abspath(__file__))
+model_path             = os.path.join(BASE_DIR, "model.pth")
+scaler_path            = os.path.join(BASE_DIR, "scaler.pkl")
+threshold_path         = os.path.join(BASE_DIR, "threshold.npy")
+warning_threshold_path = os.path.join(BASE_DIR, "warning_threshold.npy")
+feature_thresh_path    = os.path.join(BASE_DIR, "feature_thresholds.npy")
 
-# ---------------- LOAD ----------------
+# ─────────────── LOAD MODEL ───────────────
 model_loaded = False
+model = AutoEncoder(INPUT_DIM)
 
-if (
-    os.path.exists(model_path) and
-    os.path.exists(scaler_path) and
-    os.path.exists(threshold_path) and
-    os.path.exists(feature_thresholds_path)
-):
-    print("✔ REAL MODE")
-
+if all(os.path.exists(p) for p in [
+    model_path, scaler_path, threshold_path,
+    warning_threshold_path, feature_thresh_path
+]):
+    print("✔ REAL MODE — loading model files")
     model.load_state_dict(torch.load(model_path, map_location="cpu"))
     model.eval()
-
-    scaler = joblib.load(scaler_path)
-    THRESHOLD = float(np.load(threshold_path))
-    feature_thresholds = np.load(feature_thresholds_path)
-
-    WARNING_THRESHOLD = 0.7 * THRESHOLD
-    model_loaded = True
-
+    scaler             = joblib.load(scaler_path)
+    THRESHOLD          = float(np.load(threshold_path))
+    WARNING_THRESHOLD  = float(np.load(warning_threshold_path))
+    feature_thresholds = np.load(feature_thresh_path)
+    model_loaded       = True
+    print(f"  Fault threshold   : {THRESHOLD:.6f}")
+    print(f"  Warning threshold : {WARNING_THRESHOLD:.6f}")
 else:
-    print("⚠ DUMMY MODE")
+    print("⚠ DUMMY MODE — model files not found, using simulated data")
 
-feature_names = ["Voltage", "Current", "Power", "Temperature", "Vibration"]
-
-# ---------------- SERIAL ----------------
+# ─────────────── SERIAL ───────────────────
 if model_loaded:
-    ser = serial.Serial("COM5", 115200, timeout=1)
+    import serial
+    ser    = serial.Serial(PORT, BAUD, timeout=1)
     buffer = deque(maxlen=WINDOW_SIZE)
 
-# ---------------- DATA ----------------
-latest_data = {
-    "values": {},
-    "status": "Normal",
-    "faults": [],
-    "history": []
+# ─────────────── SHARED STATE + LOCK ──────
+_lock = threading.Lock()
+
+_state = {
+    "values"        : {f: 0.0 for f in FEATURES},
+    "status"        : "Normal",
+    "faults"        : [],
+    "prediction"    : False,    # True = pattern suggests upcoming fault
+    "mse"           : 0.0,
+    "mse_history"   : [],       # Last N MSE values (for frontend chart)
+    "history"       : [],       # Fault/warning event log
 }
 
-# ---------------- DUMMY ----------------
-def generate_dummy():
-    temp = random.uniform(40, 75)
+mse_deque = deque(maxlen=100)   # Internal MSE window for trend detection
 
-    values = {
-        "Voltage": random.uniform(210, 240),
-        "Current": random.uniform(0.5, 2),
-        "Power": random.uniform(80, 200),
-        "Temperature": temp,
-        "Vibration": random.uniform(0.1, 1)
+
+def get_state() -> dict:
+    with _lock:
+        return {
+            "values"     : dict(_state["values"]),
+            "status"     : _state["status"],
+            "faults"     : list(_state["faults"]),
+            "prediction" : _state["prediction"],
+            "mse"        : _state["mse"],
+            "mse_history": list(_state["mse_history"]),
+            "history"    : list(_state["history"]),
+        }
+
+
+def set_state(**kwargs):
+    with _lock:
+        for k, v in kwargs.items():
+            _state[k] = v
+
+
+# ─────────────── TREND ────────────────────
+def detect_rising_trend() -> tuple[bool, float]:
+    if len(mse_deque) < TREND_WINDOW:
+        return False, 0.0
+    values = np.array(list(mse_deque)[-TREND_WINDOW:])
+    if values.std() < 1e-10:
+        return False, 0.0
+    x    = np.arange(len(values), dtype=float)
+    corr = np.corrcoef(x, values)[0, 1]
+    slope = np.polyfit(x, values, 1)[0]
+    return corr > TREND_THRESHOLD and slope > 0, slope
+
+
+# ─────────────── DUMMY ────────────────────
+_dummy_temp   = 35.0
+_dummy_step   = 0
+
+def generate_dummy() -> tuple[dict, str, list, bool]:
+    global _dummy_temp, _dummy_step
+    _dummy_step += 1
+
+    # Slowly rising temperature to simulate a developing fault
+    _dummy_temp += random.uniform(-0.1, 0.15)
+    _dummy_temp  = max(30, min(75, _dummy_temp))
+
+    current = random.uniform(0.3, 1.5)
+    voltage = random.uniform(220, 240)
+    values  = {
+        "Voltage"    : round(voltage, 2),
+        "Current"    : round(current, 4),
+        "Power"      : round(voltage * current, 2),
+        "Temperature": round(_dummy_temp, 1),
+        "Humidity"   : round(random.uniform(50, 70), 1),
+        "Vibration"  : round(random.uniform(500, 2000), 0),
     }
 
-    # realistic warning/fault logic
-    if temp > 72:
-        return values, "Fault", ["Temperature"]
-    elif temp > 68:
-        return values, "Warning", []
+    if _dummy_temp > 72:
+        return values, "Fault", ["Temperature"], False
+    elif _dummy_temp > 68:
+        return values, "Warning", [], False
+    elif _dummy_temp > 62:
+        return values, "Normal", [], True    # prediction: temp trending up
     else:
-        return values, "Normal", []
+        return values, "Normal", [], False
 
-# ---------------- LOOP ----------------
+
+# ─────────────── LOG ──────────────────────
+_log_path = os.path.join(BASE_DIR, "logs.csv")
+_log_file = open(_log_path, "a", newline="")   # Open once — not per-loop
+_log_writer = csv.writer(_log_file)
+
+
+def log_event(status: str, faults: list, mse: float):
+    if status != "Normal":
+        _log_writer.writerow([datetime.now().isoformat(), status, ";".join(faults), round(mse, 6)])
+        _log_file.flush()
+
+
+# ─────────────── DETECTION LOOP ───────────
+anomaly_counter = 0
+
 def detection_loop():
-    global latest_data
+    global anomaly_counter
 
     while True:
         try:
-
-            # -------- DUMMY MODE --------
             if not model_loaded:
-                vals, status, faults = generate_dummy()
+                # ── DUMMY MODE ──
+                import time
+                time.sleep(0.5)
+                vals, status, faults, prediction = generate_dummy()
 
-                latest_data["values"] = vals
-                latest_data["status"] = status
-                latest_data["faults"] = faults
+                with _lock:
+                    _state["values"]     = vals
+                    _state["status"]     = status
+                    _state["faults"]     = faults
+                    _state["prediction"] = prediction
+                    _state["mse"]        = 0.0
 
-            # -------- REAL MODE --------
+                    if status != "Normal":
+                        _state["history"].append({
+                            "time"      : datetime.now().isoformat(timespec="seconds"),
+                            "status"    : status,
+                            "faults"    : faults,
+                            "prediction": prediction,
+                        })
+                        _state["history"] = _state["history"][-HISTORY_MAX:]
+
             else:
+                # ── REAL MODE ──
                 raw = ser.readline().decode(errors="ignore").strip()
-                if not raw:
+                if not raw or raw.startswith("#"):
                     continue
 
                 parts = raw.split(",")
-                if len(parts) != 5:
+                if len(parts) != N_FEATURES:
                     continue
 
-                vals = np.array([float(v) for v in parts])
-                vals_scaled = scaler.transform([vals])[0]
+                try:
+                    vals_arr = np.array([float(v) for v in parts])
+                except ValueError:
+                    continue
 
+                vals_scaled = scaler.transform([vals_arr])[0]
                 buffer.append(vals_scaled)
 
                 if len(buffer) < WINDOW_SIZE:
                     continue
 
-                x = torch.tensor(np.array(buffer).reshape(1, -1), dtype=torch.float32)
+                x = torch.tensor(
+                    np.array(buffer).reshape(1, -1),
+                    dtype=torch.float32
+                )
 
                 with torch.no_grad():
-                    recon = model(x)
-                    loss = torch.mean((recon - x) ** 2).item()
+                    recon       = model(x)
+                    loss        = torch.mean((recon - x) ** 2).item()
+                    feat_errors = (recon - x).numpy().reshape(WINDOW_SIZE, N_FEATURES).mean(axis=0)
 
-                    error = (recon - x).numpy().reshape(WINDOW_SIZE, 5)
-                    feature_errors = error.mean(axis=0)
+                mse_deque.append(loss)
+                is_rising, _ = detect_rising_trend()
 
-                latest_data["values"] = {
-                    "Voltage": float(vals[0]),
-                    "Current": float(vals[1]),
-                    "Power": float(vals[2]),
-                    "Temperature": float(vals[3]),
-                    "Vibration": float(vals[4]),
-                }
-
-                status = "Normal"
-                faults = []
-
+                # Anomaly counter
                 if loss > THRESHOLD:
-                    status = "Fault"
-                    for i, fe in enumerate(feature_errors):
-                        if fe > feature_thresholds[i]:
-                            faults.append(feature_names[i])
+                    anomaly_counter += 1
+                else:
+                    anomaly_counter = 0
 
+                # Status
+                faults = []
+                if anomaly_counter >= 3:
+                    status = "Fault"
+                    for i, fe in enumerate(feat_errors):
+                        if fe > feature_thresholds[i]:
+                            faults.append(FEATURES[i])
                 elif loss > WARNING_THRESHOLD:
                     status = "Warning"
+                else:
+                    status = "Normal"
 
-                latest_data["status"] = status
-                latest_data["faults"] = faults
+                prediction = is_rising and status == "Normal" and loss > WARNING_THRESHOLD * 0.7
 
-                with open("logs.csv", "a", newline="") as f:
-                    writer = csv.writer(f)
-                    writer.writerow([
-                        datetime.now(),
-                        status,
-                        ",".join(faults),
-                        loss
-                    ])
+                vals_dict = {
+                    FEATURES[i]: round(float(vals_arr[i]), 3)
+                    for i in range(N_FEATURES)
+                }
 
-            # -------- HISTORY --------
-            if latest_data["status"] != "Normal":
-                latest_data["history"].append({
-                    "time": str(datetime.now()),
-                    "faults": latest_data["faults"]
-                })
-                latest_data["history"] = latest_data["history"][-50:]
+                with _lock:
+                    _state["values"]     = vals_dict
+                    _state["status"]     = status
+                    _state["faults"]     = faults
+                    _state["prediction"] = prediction
+                    _state["mse"]        = round(loss, 6)
+                    _state["mse_history"].append(round(loss, 6))
+                    if len(_state["mse_history"]) > 60:
+                        _state["mse_history"].pop(0)
+
+                    if status != "Normal" or prediction:
+                        _state["history"].append({
+                            "time"      : datetime.now().isoformat(timespec="seconds"),
+                            "status"    : status,
+                            "faults"    : faults,
+                            "prediction": prediction,
+                        })
+                        _state["history"] = _state["history"][-HISTORY_MAX:]
+
+                log_event(status, faults, loss)
 
         except Exception as e:
-            print("Error:", e)
+            print(f"Detection loop error: {e}")
             continue
+
 
 threading.Thread(target=detection_loop, daemon=True).start()
 
+# ─────────────── ENDPOINTS ────────────────
 @app.get("/data")
 def get_data():
-    return latest_data
+    return get_state()
+
+@app.get("/history")
+def get_history():
+    with _lock:
+        return {"history": list(_state["history"])}
+
+@app.get("/health")
+def health():
+    return {
+        "model_loaded": model_loaded,
+        "mode"        : "real" if model_loaded else "dummy",
+        "threshold"   : THRESHOLD if model_loaded else None,
+    }
