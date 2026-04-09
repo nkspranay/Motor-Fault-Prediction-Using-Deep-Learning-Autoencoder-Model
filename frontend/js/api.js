@@ -1,8 +1,20 @@
+const API_BASE = "http://localhost:8000";
+
 export async function fetchData() {
   try {
-    const res = await fetch("http://127.0.0.1:8000/data");
+    const res = await fetch(`${API_BASE}/data`, { signal: AbortSignal.timeout(2000) });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
-  } catch {
+  } catch (e) {
+    return null;
+  }
+}
+
+export async function fetchHealth() {
+  try {
+    const res = await fetch(`${API_BASE}/health`, { signal: AbortSignal.timeout(2000) });
+    return await res.json();
+  } catch (e) {
     return null;
   }
 }

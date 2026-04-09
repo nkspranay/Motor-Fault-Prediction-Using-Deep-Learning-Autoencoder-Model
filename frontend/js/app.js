@@ -1,17 +1,29 @@
-import { fetchData } from "./api.js";
-import { createChart, updateChart, switchMetric } from "./chart.js";
-import { updateStatus, updateMetrics, updateHistory } from "./ui.js";
+import { fetchData, fetchHealth } from "./api.js";
+import { createChart, updateChart, switchMetric, createMSEChart, updateMSEChart } from "./chart.js";
+import { updateStatus, updateMetrics, updateHistory, showToast, setConnected } from "./ui.js";
 
 let chart;
-let currentMetric = "Temperature";
+let mseChart;
+let currentMetric   = "Temperature";
+let lastStatus      = "Normal";
+let lastAlertTime   = 0;
+const ALERT_COOLDOWN = 15000;
 
-let lastStatus = "Normal";
-let lastAlertTime = 0;
-const ALERT_COOLDOWN = 10000; // 10 sec
+window.onload = async () => {
+  const ctx    = document.getElementById("chart").getContext("2d");
+  const mseCtx = document.getElementById("mse-chart").getContext("2d");
+  chart    = createChart(ctx);
+  mseChart = createMSEChart(mseCtx);
 
-window.onload = () => {
-  const ctx = document.getElementById("chart").getContext("2d");
-  chart = createChart(ctx);
+  // Check mode on startup
+  const health = await fetchHealth();
+  if (health) {
+    const modeEl = document.getElementById("mode-badge");
+    if (modeEl) {
+      modeEl.textContent = health.mode === "real" ? "REAL" : "DEMO";
+      modeEl.style.background = health.mode === "real" ? "#16a34a" : "#d97706";
+    }
+  }
 
   mainLoop();
   setInterval(mainLoop, 1000);
@@ -19,59 +31,95 @@ window.onload = () => {
 
 async function mainLoop() {
   const data = await fetchData();
-  if (!data) return;
 
-  updateStatus(data.status);
+  if (!data) {
+    setConnected(false);
+    return;
+  }
+  setConnected(true);
+
+  updateStatus(data.status, data.prediction);
   updateMetrics(data.values);
   updateHistory(data.history);
+  updateMSEChart(mseChart, data.mse_history);
 
   const now = Date.now();
 
-  // -------- ALERT CONTROL --------
-  if (
-    data.status !== lastStatus &&
-    now - lastAlertTime > ALERT_COOLDOWN
-  ) {
+  // ── Toast notifications (non-blocking) ──
+  if (data.status !== lastStatus && now - lastAlertTime > ALERT_COOLDOWN) {
+
     if (data.status === "Warning") {
-      alert("Warning: Possible upcoming fault");
-      playBeep();
+      showToast("warning", "Warning", "Possible fault developing — monitor closely.");
+      playBeep("warning");
     }
 
     if (data.status === "Fault") {
-      alert("Fault detected: " + data.faults.join(", "));
-      playBeep();
+      const faultList = (data.faults || []).join(", ") || "Unknown";
+      showToast("fault", "Fault Detected", `Affected: ${faultList}`);
+      playBeep("fault");
     }
 
-    lastStatus = data.status;
+    if (data.status === "Normal" && lastStatus !== "Normal") {
+      showToast("normal", "Recovered", "System back to normal.");
+    }
+
+    lastStatus    = data.status;
     lastAlertTime = now;
   }
 
-  // -------- AUTO SWITCH --------
-  if (data.status === "Fault" && data.faults.length > 0) {
-    const faultMetric = data.faults[0];
+  // Prediction toast (separate cooldown)
+  if (data.prediction && data.status === "Normal") {
+    const key = "pred_" + Math.floor(now / 30000);   // max once per 30s
+    if (!sessionStorage.getItem(key)) {
+      sessionStorage.setItem(key, "1");
+      showToast("predict", "Prediction", "Rising error pattern detected — possible fault forming.");
+    }
+  }
 
+  // ── Auto-switch chart to faulted feature ──
+  if (data.status === "Fault" && (data.faults || []).length > 0) {
+    const faultMetric = data.faults[0];
     if (faultMetric !== currentMetric) {
       currentMetric = faultMetric;
       switchMetric(chart, faultMetric);
     }
   }
 
-  const isAnomaly = data.faults.includes(currentMetric);
-
+  const isAnomaly = (data.faults || []).includes(currentMetric);
   updateChart(chart, data.values[currentMetric], isAnomaly);
 }
 
-window.setMetric = function(metric) {
+// Public
+window.setMetric = function (metric) {
   currentMetric = metric;
   switchMetric(chart, metric);
 };
 
-window.showPage = function(page) {
+window.showPage = function (page) {
   document.querySelectorAll(".page").forEach(p => p.classList.add("hidden"));
   document.getElementById(page).classList.remove("hidden");
+
+  // Highlight active nav button
+  document.querySelectorAll(".nav-btn").forEach(b => b.classList.remove("active"));
+  const btn = document.querySelector(`[onclick="showPage('${page}')"]`);
+  if (btn) btn.classList.add("active");
 };
 
-function playBeep() {
-  const audio = new Audio("https://www.soundjay.com/buttons/beep-01a.mp3");
-  audio.play();
+// ── Beep ──
+function playBeep(type) {
+  try {
+    const ctx  = new (window.AudioContext || window.webkitAudioContext)();
+    const osc  = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.frequency.value = type === "fault" ? 880 : type === "warning" ? 660 : 440;
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.4);
+  } catch (e) {
+    // Audio context not available — silent fail
+  }
 }
