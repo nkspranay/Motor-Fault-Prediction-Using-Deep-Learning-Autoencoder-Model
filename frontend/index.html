@@ -1,229 +1,558 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Motor Fault Detection</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="stylesheet" href="css/styles.css" />
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>MotorGuard — Fault Detection System</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0c10; --surface:#111318; --surface2:#181c24;
+  --border:#1f2430; --border2:#2a3040;
+  --text:#e2e8f0; --muted:#64748b;
+  --accent:#f59e0b; --green:#10b981; --red:#ef4444;
+  --blue:#3b82f6; --purple:#8b5cf6; --cyan:#06b6d4;
+  --font-mono:'Space Mono',monospace; --font-body:'DM Sans',sans-serif;
+  --sidebar-w:220px; --radius:12px;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:14px;overflow:hidden}
+.layout{display:flex;height:100vh}
 
-    body {
-      font-family: 'Inter', sans-serif;
-      background: #f1f5f9;
-      color: #1e293b;
-      min-height: 100vh;
-    }
+/* Sidebar */
+.sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:20px 14px;gap:3px}
+.brand{padding:0 6px 20px;border-bottom:1px solid var(--border);margin-bottom:10px}
+.brand-name{font-family:var(--font-mono);font-size:14px;font-weight:700;letter-spacing:.05em}
+.brand-name span{color:var(--accent)}
+.brand-sub{font-size:10px;color:var(--muted);margin-top:3px;letter-spacing:.08em;text-transform:uppercase}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;color:var(--muted);cursor:pointer;font-size:13px;font-weight:500;transition:all .15s;border:none;background:none;width:100%;text-align:left;font-family:var(--font-body)}
+.nav-item:hover{background:var(--surface2);color:var(--text)}
+.nav-item.active{background:rgba(245,158,11,.1);color:var(--accent)}
+.nav-icon{font-size:14px;width:18px;text-align:center}
+.sidebar-footer{margin-top:auto;padding-top:14px;border-top:1px solid var(--border)}
+.conn-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--muted);margin-right:6px;transition:background .3s}
+.conn-dot.online{background:var(--green);box-shadow:0 0 6px var(--green)}
+.conn-dot.offline{background:var(--red)}
+.conn-label{font-size:11px;color:var(--muted);font-family:var(--font-mono)}
+.mode-pill{display:inline-block;margin-top:7px;padding:2px 10px;border-radius:20px;font-size:10px;font-family:var(--font-mono);font-weight:700;letter-spacing:.08em;background:rgba(139,92,246,.15);color:var(--purple);border:1px solid rgba(139,92,246,.3)}
+.mode-pill.real{background:rgba(16,185,129,.1);color:var(--green);border-color:rgba(16,185,129,.3)}
 
-    /* ── Sidebar ── */
-    .sidebar {
-      position: fixed;
-      left: 0; top: 0; bottom: 0;
-      width: 220px;
-      background: #1e293b;
-      color: #e2e8f0;
-      padding: 24px 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      z-index: 100;
-    }
-    .sidebar-title {
-      font-size: 1rem;
-      font-weight: 700;
-      color: #fff;
-      margin-bottom: 16px;
-      line-height: 1.3;
-    }
-    .sidebar-title span { color: #818cf8; }
-    .nav-btn {
-      display: block;
-      width: 100%;
-      padding: 10px 14px;
-      background: transparent;
-      border: none;
-      border-radius: 8px;
-      color: #94a3b8;
-      text-align: left;
-      cursor: pointer;
-      font-size: 0.9rem;
-      font-family: inherit;
-      transition: all 0.15s;
-    }
-    .nav-btn:hover, .nav-btn.active {
-      background: #334155;
-      color: #fff;
-    }
-    .sidebar-footer {
-      margin-top: auto;
-      font-size: 0.75rem;
-      color: #475569;
-    }
-    #connection-status { font-size: 0.8rem; margin-top: 8px; }
-    #mode-badge {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-size: 0.7rem;
-      font-weight: 700;
-      color: #fff;
-      margin-top: 6px;
-    }
+/* Main */
+.main{flex:1;overflow-y:auto;padding:22px;display:flex;flex-direction:column;gap:14px}
+.page{display:none;flex-direction:column;gap:14px}
+.page.active{display:flex}
 
-    /* ── Main content ── */
-    .main {
-      margin-left: 220px;
-      padding: 28px;
-      min-height: 100vh;
-    }
-    .page { display: none; }
-    .page.active { display: block; }
-    .hidden { display: none !important; }
+/* Header */
+.page-header{display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.page-title{font-size:20px;font-weight:600}
+.page-time{font-family:var(--font-mono);font-size:11px;color:var(--muted)}
 
-    h2 { font-size: 1.25rem; font-weight: 700; margin-bottom: 16px; color: #0f172a; }
+/* Status bar */
+.status-bar{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:13px 18px;display:flex;align-items:center;gap:14px;position:relative;overflow:hidden;transition:border-color .4s,box-shadow .4s;flex-shrink:0}
+.status-bar.warning{border-color:rgba(245,158,11,.45);box-shadow:0 0 20px rgba(245,158,11,.08)}
+.status-bar.fault{border-color:rgba(239,68,68,.45);box-shadow:0 0 20px rgba(239,68,68,.1)}
+.status-bar.predict{border-color:rgba(139,92,246,.45);box-shadow:0 0 20px rgba(139,92,246,.08)}
+.status-indicator{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);transition:all .4s}
+.status-bar.warning .status-indicator{background:rgba(245,158,11,.1);border-color:rgba(245,158,11,.4)}
+.status-bar.fault .status-indicator{background:rgba(239,68,68,.1);border-color:rgba(239,68,68,.4);animation:pulseRed 1.2s infinite}
+.status-bar.predict .status-indicator{background:rgba(139,92,246,.1);border-color:rgba(139,92,246,.4)}
+@keyframes pulseRed{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.4)}50%{box-shadow:0 0 0 8px rgba(239,68,68,0)}}
+.status-text{flex:1}
+.status-label{font-size:15px;font-weight:600}
+.status-detail{font-size:11px;color:var(--muted);margin-top:2px}
+.status-mse{font-family:var(--font-mono);font-size:11px;color:var(--muted);text-align:right;flex-shrink:0}
 
-    /* ── Status banner ── */
-    #status { margin-bottom: 20px; }
+/* 6-chart grid */
+.chart-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;flex-shrink:0}
 
-    /* ── Metric cards ── */
-    #metrics {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-      gap: 12px;
-      margin-bottom: 24px;
-    }
-    .metric-card {
-      background: #fff;
-      border-radius: 12px;
-      padding: 16px;
-      text-align: center;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.07);
-      cursor: pointer;
-      transition: box-shadow 0.15s, transform 0.15s;
-    }
-    .metric-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.12); transform: translateY(-1px); }
-    .metric-label { font-size: 0.78rem; color: #64748b; margin-bottom: 6px; font-weight: 500; }
-    .metric-value { font-size: 1.35rem; font-weight: 700; color: #1e293b; }
-    .metric-unit  { font-size: 0.8rem; color: #64748b; font-weight: 400; }
+.mini-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:13px 14px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
+.mini-card::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:var(--c,var(--border))}
+.mini-card:hover{border-color:var(--border2);transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.35)}
+.mini-card:hover .expand-tag{opacity:1}
+.mini-card.fault-card{border-color:rgba(239,68,68,.5);box-shadow:0 0 14px rgba(239,68,68,.12)}
+.expand-tag{position:absolute;top:9px;right:9px;font-size:9px;color:var(--muted);opacity:0;transition:opacity .15s;background:var(--surface2);border:1px solid var(--border2);border-radius:4px;padding:2px 6px;font-family:var(--font-mono);pointer-events:none}
+.mc-label{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;font-weight:500;margin-bottom:7px}
+.mc-value{font-family:var(--font-mono);font-size:22px;font-weight:700;line-height:1;color:var(--c)}
+.mc-unit{font-size:10px;color:var(--muted);font-weight:400;margin-left:2px}
+.mc-trend{font-size:10px;font-family:var(--font-mono);margin-top:4px;color:var(--muted)}
+.mc-wrap{height:68px;position:relative;margin-top:8px}
 
-    /* ── Charts ── */
-    .chart-card {
-      background: #fff;
-      border-radius: 12px;
-      padding: 20px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.07);
-      margin-bottom: 20px;
-    }
-    .chart-card h3 {
-      font-size: 0.9rem;
-      font-weight: 600;
-      color: #475569;
-      margin-bottom: 12px;
-    }
-    .chart-wrap { height: 200px; }
+/* Bottom row */
+.bottom-row{display:grid;grid-template-columns:3fr 2fr;gap:12px;flex-shrink:0}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px}
+.card-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.card-title{font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.card-meta{font-family:var(--font-mono);font-size:10px;color:var(--muted)}
+.mse-wrap{height:90px;position:relative}
 
-    /* ── Metric buttons ── */
-    .metric-btns {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-bottom: 12px;
-    }
-    .toggle-btn {
-      padding: 6px 14px;
-      border: 1px solid #e2e8f0;
-      border-radius: 20px;
-      background: #f8fafc;
-      cursor: pointer;
-      font-size: 0.82rem;
-      font-family: inherit;
-      transition: all 0.15s;
-    }
-    .toggle-btn:hover { background: #e0e7ff; border-color: #6366f1; }
+/* Mini event list */
+.mini-event{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)}
+.mini-event:last-child{border-bottom:none}
+.mini-event-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.mini-event-text{flex:1;font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mini-event-time{font-family:var(--font-mono);font-size:10px;color:var(--muted)}
+.no-events{font-size:12px;color:var(--muted);padding:16px 0;text-align:center}
 
-    /* ── History ── */
-    #history-list { display: flex; flex-direction: column; gap: 10px; }
-    .history-item {
-      background: #fff;
-      border-radius: 10px;
-      padding: 12px 16px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-    }
+/* Detail overlay */
+.overlay{position:fixed;inset:0;background:rgba(10,12,16,.88);z-index:500;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(8px);animation:fadeIn .2s ease}
+.overlay.closing{animation:fadeOut .2s ease forwards}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes fadeOut{from{opacity:1}to{opacity:0}}
+.detail-panel{background:var(--surface);border:1px solid var(--border2);border-radius:18px;padding:26px;width:min(780px,92vw);max-height:90vh;overflow-y:auto;box-shadow:0 32px 80px rgba(0,0,0,.6);animation:panelIn .25s cubic-bezier(.34,1.4,.64,1)}
+@keyframes panelIn{from{opacity:0;transform:scale(.95) translateY(10px)}to{opacity:1;transform:none}}
+.det-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px}
+.det-name{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin-bottom:6px}
+.det-val{font-family:var(--font-mono);font-size:46px;font-weight:700;line-height:1}
+.det-unit{font-family:var(--font-mono);font-size:18px;color:var(--muted);font-weight:400;margin-left:6px}
+.close-btn{width:34px;height:34px;border-radius:50%;border:1px solid var(--border2);background:var(--surface2);color:var(--muted);font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0}
+.close-btn:hover{background:var(--border2);color:var(--text)}
+.det-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}
+.det-stat{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px}
+.det-stat-lbl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:5px}
+.det-stat-val{font-family:var(--font-mono);font-size:17px;font-weight:700}
+.det-chart-wrap{height:230px;position:relative;margin-bottom:16px}
+.det-badge{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600}
+.det-badge.ok{background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);color:var(--green)}
+.det-badge.bad{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.4);color:var(--red)}
 
-    /* ── Toast animation ── */
-    @keyframes slideIn {
-      from { opacity: 0; transform: translateX(20px); }
-      to   { opacity: 1; transform: translateX(0); }
-    }
-  </style>
+/* History page */
+.hist-item{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:13px 16px;display:flex;align-items:flex-start;gap:12px;margin-bottom:8px}
+.hist-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:4px}
+.hist-body{flex:1}
+.hist-status{font-size:13px;font-weight:600}
+.hist-detail{font-size:11px;color:var(--muted);margin-top:2px}
+.hist-time{font-family:var(--font-mono);font-size:10px;color:var(--muted);white-space:nowrap}
+.hist-empty{text-align:center;color:var(--muted);font-size:13px;padding:48px 0}
+
+/* Toasts */
+#toasts{position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;max-width:290px;pointer-events:none}
+.toast{background:var(--surface2);border-radius:10px;padding:13px 16px;border-left:3px solid var(--green);pointer-events:all;box-shadow:0 8px 32px rgba(0,0,0,.5);cursor:pointer;animation:toastIn .3s cubic-bezier(.34,1.4,.64,1)}
+.toast.warning{border-color:var(--accent)}.toast.fault{border-color:var(--red)}.toast.predict{border-color:var(--purple)}
+.toast-title{font-size:12px;font-weight:700;color:var(--text);margin-bottom:3px}
+.toast-msg{font-size:11px;color:var(--muted)}
+@keyframes toastIn{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:none}}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+</style>
 </head>
 <body>
+<div id="toasts"></div>
 
-<!-- ── Sidebar ── -->
+<!-- Detail overlay -->
+<div class="overlay" id="overlay" style="display:none" onclick="_overlayClick(event)">
+  <div class="detail-panel">
+    <div class="det-top">
+      <div>
+        <div class="det-name" id="d-name">—</div>
+        <div style="display:flex;align-items:baseline">
+          <div class="det-val" id="d-val">—</div>
+          <div class="det-unit" id="d-unit"></div>
+        </div>
+      </div>
+      <button class="close-btn" onclick="closeDetail()">✕</button>
+    </div>
+    <div class="det-stats">
+      <div class="det-stat"><div class="det-stat-lbl">Current</div><div class="det-stat-val" id="ds-now">—</div></div>
+      <div class="det-stat"><div class="det-stat-lbl">Min (session)</div><div class="det-stat-val" id="ds-min">—</div></div>
+      <div class="det-stat"><div class="det-stat-lbl">Max (session)</div><div class="det-stat-val" id="ds-max">—</div></div>
+      <div class="det-stat"><div class="det-stat-lbl">Avg (session)</div><div class="det-stat-val" id="ds-avg">—</div></div>
+    </div>
+    <div class="det-chart-wrap"><canvas id="det-chart"></canvas></div>
+    <div id="det-badge"></div>
+  </div>
+</div>
+
+<div class="layout">
 <nav class="sidebar">
-  <div class="sidebar-title">⚙ Motor<br><span>Fault Detection</span></div>
-
-  <button class="nav-btn active" onclick="showPage('dashboard')">📊 Dashboard</button>
-  <button class="nav-btn"       onclick="showPage('history')">📋 Event History</button>
-  <button class="nav-btn"       onclick="showPage('mse-page')">📈 MSE Monitor</button>
-
+  <div class="brand">
+    <div class="brand-name">Motor<span>Guard</span></div>
+    <div class="brand-sub">Fault Detection System</div>
+  </div>
+  <button class="nav-item active" onclick="showPage('pg-dash',this)"><span class="nav-icon">⊡</span>Dashboard</button>
+  <button class="nav-item"        onclick="showPage('pg-log',this)"><span class="nav-icon">≡</span>Event Log</button>
   <div class="sidebar-footer">
-    <div id="connection-status">● Connecting...</div>
-    <div id="mode-badge" style="background:#6366f1">DEMO</div>
+    <div><span class="conn-dot" id="conn-dot"></span><span class="conn-label" id="conn-lbl">Connecting…</span></div>
+    <div class="mode-pill" id="mode-pill">DEMO</div>
   </div>
 </nav>
 
-<!-- ── Main ── -->
 <main class="main">
 
   <!-- Dashboard -->
-  <div id="dashboard" class="page active">
-    <h2>Live Dashboard</h2>
-    <div id="status"></div>
-    <div id="metrics"></div>
+  <div id="pg-dash" class="page active">
+    <div class="page-header">
+      <div class="page-title">Live Monitor</div>
+      <div class="page-time" id="clock">—</div>
+    </div>
 
-    <div class="chart-card">
-      <h3>Feature Monitor — click a metric card to switch</h3>
-      <div class="metric-btns">
-        <button class="toggle-btn" onclick="setMetric('Voltage')">Voltage</button>
-        <button class="toggle-btn" onclick="setMetric('Current')">Current</button>
-        <button class="toggle-btn" onclick="setMetric('Power')">Power</button>
-        <button class="toggle-btn" onclick="setMetric('Temperature')">Temperature</button>
-        <button class="toggle-btn" onclick="setMetric('Humidity')">Humidity</button>
-        <button class="toggle-btn" onclick="setMetric('Vibration')">Vibration</button>
+    <div class="status-bar" id="sbar">
+      <div class="status-indicator" id="sicon">✓</div>
+      <div class="status-text">
+        <div class="status-label"  id="slabel">Normal</div>
+        <div class="status-detail" id="sdetail">All systems operating within normal parameters</div>
       </div>
-      <div class="chart-wrap">
-        <canvas id="chart"></canvas>
+      <div class="status-mse">
+        <div style="font-size:10px;margin-bottom:2px">RECON ERROR</div>
+        <div id="smse" style="font-family:var(--font-mono);font-size:13px;color:var(--text)">—</div>
+      </div>
+    </div>
+
+    <div class="chart-grid" id="grid"></div>
+
+    <div class="bottom-row">
+      <div class="card">
+        <div class="card-hdr">
+          <div class="card-title">Reconstruction Error (MSE)</div>
+          <div class="card-meta" id="mse-meta">—</div>
+        </div>
+        <div class="mse-wrap"><canvas id="mse-c"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-hdr">
+          <div class="card-title">Recent Events</div>
+          <div class="card-meta" id="ev-count">0 events</div>
+        </div>
+        <div id="ev-list"></div>
       </div>
     </div>
   </div>
 
-  <!-- History -->
-  <div id="history" class="page hidden">
-    <h2>Event History</h2>
-    <div id="history-list"></div>
-  </div>
-
-  <!-- MSE Monitor -->
-  <div id="mse-page" class="page hidden">
-    <h2>Reconstruction Error (MSE)</h2>
-    <p style="color:#64748b;font-size:0.875rem;margin-bottom:16px">
-      Rising MSE indicates the motor's behaviour is deviating from normal.
-      A sustained rise above the warning line predicts an upcoming fault.
-    </p>
-    <div class="chart-card">
-      <h3>MSE over time</h3>
-      <div class="chart-wrap" style="height:260px">
-        <canvas id="mse-chart"></canvas>
-      </div>
-    </div>
+  <!-- Event log -->
+  <div id="pg-log" class="page">
+    <div class="page-header"><div class="page-title">Event Log</div></div>
+    <div id="hist-list"><div class="hist-empty">No events recorded yet</div></div>
   </div>
 
 </main>
+</div>
 
-<script type="module" src="js/app.js"></script>
+<script>
+const API      = "http://localhost:8000";
+const FEATURES = ["Voltage","Current","Power","Temperature","Humidity","Vibration"];
+const UNITS    = {Voltage:"V",Current:"A",Power:"W",Temperature:"°C",Humidity:"%",Vibration:""};
+const COLORS   = {Voltage:"#10b981",Current:"#3b82f6",Power:"#8b5cf6",Temperature:"#f59e0b",Humidity:"#06b6d4",Vibration:"#ef4444"};
+const RANGES   = {Voltage:{min:180,max:260},Current:{min:0,max:3},Power:{min:0,max:600},Temperature:{min:20,max:80},Humidity:{min:20,max:100},Vibration:{min:0,max:4095}};
+const MAXPTS   = 50;
+const DOT_CLR  = {Fault:"#ef4444",Warning:"#f59e0b",Normal:"#10b981"};
+
+let latestData  = null;
+let lastStatus  = "Normal";
+let lastToastTs = 0;
+const TOAST_CD  = 15000;
+
+// Session stats
+const SS = {};
+FEATURES.forEach(f=>{SS[f]={min:Infinity,max:-Infinity,sum:0,n:0}});
+
+// Chart instances
+const miniCharts = {};
+let mseChart = null, detChart = null, detMetric = null;
+
+/* ─── Chart helpers ─────────────────────────────── */
+function mkOpts(yMin,yMax,tooltip=false){
+  return{
+    responsive:true,maintainAspectRatio:false,animation:false,
+    plugins:{legend:{display:false},tooltip:{enabled:tooltip,backgroundColor:"#181c24",titleColor:"#94a3b8",bodyColor:"#e2e8f0",borderColor:"#2a3040",borderWidth:1}},
+    scales:{x:{display:false},y:{min:yMin,max:yMax,display:false,grid:{color:"rgba(255,255,255,0.03)"}}}
+  };
+}
+function mkDs(color,fill=false){
+  return{data:[],borderColor:color,borderWidth:1.5,tension:.4,pointRadius:0,
+    fill:fill?{target:"origin",above:color+"16"}:false};
+}
+
+/* ─── Build 6-card grid ─────────────────────────── */
+function buildGrid(){
+  const g = document.getElementById("grid");
+  FEATURES.forEach(f=>{
+    const c = COLORS[f], r = RANGES[f];
+    const card = document.createElement("div");
+    card.className="mini-card"; card.id="card-"+f;
+    card.style.setProperty("--c",c);
+    card.onclick=()=>openDetail(f);
+    card.innerHTML=`
+      <div class="expand-tag">↗ expand</div>
+      <div class="mc-label">${f}</div>
+      <div class="mc-value" id="mv-${f}">—<span class="mc-unit">${UNITS[f]}</span></div>
+      <div class="mc-trend" id="mt-${f}">—</div>
+      <div class="mc-wrap"><canvas id="mc-${f}"></canvas></div>`;
+    g.appendChild(card);
+
+    const ctx=document.getElementById("mc-"+f).getContext("2d");
+    miniCharts[f]=new Chart(ctx,{type:"line",data:{labels:[],datasets:[mkDs(c,true)]},options:mkOpts(r.min,r.max)});
+  });
+}
+
+/* ─── Build MSE chart ───────────────────────────── */
+function buildMSE(){
+  const ctx=document.getElementById("mse-c").getContext("2d");
+  mseChart=new Chart(ctx,{
+    type:"line",
+    data:{labels:[],datasets:[mkDs("#6366f1",true)]},
+    options:{
+      responsive:true,maintainAspectRatio:false,animation:false,
+      plugins:{legend:{display:false},tooltip:{enabled:true,backgroundColor:"#181c24",titleColor:"#94a3b8",bodyColor:"#e2e8f0",borderColor:"#2a3040",borderWidth:1}},
+      scales:{x:{display:false},y:{beginAtZero:true,grid:{color:"rgba(255,255,255,.04)"},ticks:{color:"#475569",font:{family:"Space Mono",size:9}}}}
+    }
+  });
+}
+
+/* ─── Update mini cards & charts ────────────────── */
+function updateMinis(values,faults){
+  if(!values)return;
+  const fset=new Set(faults||[]);
+  FEATURES.forEach(f=>{
+    const v=values[f]; if(v==null)return;
+    const s=SS[f];
+    s.min=Math.min(s.min,v); s.max=Math.max(s.max,v); s.sum+=v; s.n++;
+
+    // value display
+    const mv=document.getElementById("mv-"+f);
+    if(mv)mv.innerHTML=`${Number(v).toFixed(2)}<span class="mc-unit"> ${UNITS[f]}</span>`;
+
+    // trend arrow
+    const ch=miniCharts[f];
+    const prev=ch.data.datasets[0].data.at(-1);
+    const delta=prev!=null?v-prev:0;
+    const mt=document.getElementById("mt-"+f);
+    if(mt){
+      const rising=delta>0.01, falling=delta<-0.01;
+      const warnOnRise=(f==="Temperature"||f==="Vibration");
+      mt.textContent=rising?"▲ rising":falling?"▼ falling":"— stable";
+      mt.style.color=rising?(warnOnRise?"#ef4444":"#10b981"):falling?(warnOnRise?"#10b981":"#94a3b8"):"var(--muted)";
+    }
+
+    // fault glow
+    document.getElementById("card-"+f)?.classList.toggle("fault-card",fset.has(f));
+
+    // push to mini chart
+    ch.data.labels.push("");
+    ch.data.datasets[0].data.push(v);
+    if(ch.data.labels.length>MAXPTS){ch.data.labels.shift();ch.data.datasets[0].data.shift();}
+    ch.update("none");
+  });
+}
+
+function updateMSE(hist){
+  if(!hist?.length||!mseChart)return;
+  mseChart.data.labels=hist.map((_,i)=>i);
+  mseChart.data.datasets[0].data=hist;
+  mseChart.options.scales.y.max=Math.max(...hist)*1.4||.01;
+  mseChart.update("none");
+  document.getElementById("mse-meta").textContent=(hist.at(-1)||0).toFixed(6);
+}
+
+/* ─── Status bar ────────────────────────────────── */
+const SMAP={
+  Normal:{cls:"",icon:"✓",color:"var(--green)",detail:"All systems operating within normal parameters"},
+  Warning:{cls:"warning",icon:"⚠",color:"var(--accent)",detail:"Unusual readings — monitoring closely"},
+  Fault:{cls:"fault",icon:"✕",color:"var(--red)",detail:"Fault detected — immediate attention required"},
+};
+function updateStatus(status,faults,pred,mse){
+  const s=SMAP[status]||SMAP.Normal;
+  document.getElementById("sbar").className="status-bar "+(pred&&status==="Normal"?"predict":s.cls);
+  document.getElementById("sicon").textContent=pred&&status==="Normal"?"⚑":s.icon;
+  const lbl=document.getElementById("slabel");
+  lbl.textContent=pred&&status==="Normal"?"Pattern Detected":status;
+  lbl.style.color=pred&&status==="Normal"?"var(--purple)":s.color;
+  const det=document.getElementById("sdetail");
+  det.textContent=pred&&status==="Normal"?"Rising error pattern — fault may be forming":
+    status==="Fault"&&faults?.length?`Affected: ${faults.join(", ")}`:s.detail;
+  document.getElementById("smse").textContent=typeof mse==="number"?mse.toFixed(6):"—";
+}
+
+/* ─── Event panels ──────────────────────────────── */
+function updateEvList(history){
+  const el=document.getElementById("ev-list");
+  document.getElementById("ev-count").textContent=`${history?.length||0} events`;
+  if(!history?.length){el.innerHTML='<div class="no-events">No events yet</div>';return;}
+  el.innerHTML=[...history].reverse().slice(0,5).map(h=>{
+    const dc=DOT_CLR[h.status]||"#6366f1";
+    const txt=(h.faults||[]).join(", ")||(h.prediction?"Trend detected":"—");
+    return`<div class="mini-event"><div class="mini-event-dot" style="background:${dc}"></div><div class="mini-event-text">${txt}</div><div class="mini-event-time">${(h.time||"").slice(11,19)}</div></div>`;
+  }).join("");
+}
+function updateHistPage(history){
+  const el=document.getElementById("hist-list");
+  if(!history?.length){el.innerHTML='<div class="hist-empty">No events recorded yet</div>';return;}
+  el.innerHTML=[...history].reverse().map(h=>{
+    const dc=DOT_CLR[h.status]||"#6366f1";
+    const txt=(h.faults||[]).join(", ")||(h.prediction?"Error trend":"—");
+    return`<div class="hist-item"><div class="hist-dot" style="background:${dc}"></div><div class="hist-body"><div class="hist-status" style="color:${dc}">${h.status}${h.prediction?" · Prediction":""}</div><div class="hist-detail">${txt}</div></div><div class="hist-time">${(h.time||"").slice(11,19)}</div></div>`;
+  }).join("");
+}
+
+/* ─── Detail overlay ────────────────────────────── */
+function openDetail(feat){
+  detMetric=feat;
+  const color=COLORS[feat], r=RANGES[feat];
+  const vals=latestData?.values||{};
+  const v=vals[feat];
+  const s=SS[feat];
+  const isFault=(latestData?.faults||[]).includes(feat);
+
+  document.getElementById("d-name").textContent=feat;
+  document.getElementById("d-unit").textContent=UNITS[feat];
+  document.getElementById("d-val").textContent=v!=null?Number(v).toFixed(2):"—";
+  document.getElementById("d-val").style.color=color;
+
+  document.getElementById("ds-now").textContent=v!=null?`${Number(v).toFixed(3)} ${UNITS[feat]}`:"—";
+  document.getElementById("ds-min").textContent=s.n?`${s.min.toFixed(2)} ${UNITS[feat]}`:"—";
+  document.getElementById("ds-max").textContent=s.n?`${s.max.toFixed(2)} ${UNITS[feat]}`:"—";
+  document.getElementById("ds-avg").textContent=s.n?`${(s.sum/s.n).toFixed(2)} ${UNITS[feat]}`:"—";
+
+  document.getElementById("det-badge").innerHTML=isFault
+    ?`<div class="det-badge bad">⚠ Fault Detected on ${feat}</div>`
+    :`<div class="det-badge ok">✓ ${feat} within normal range</div>`;
+
+  // Clone the mini chart data so we start with history
+  const existingData=miniCharts[feat]?.data.datasets[0].data.slice()||[];
+
+  if(detChart){detChart.destroy();detChart=null;}
+  const ctx=document.getElementById("det-chart").getContext("2d");
+  detChart=new Chart(ctx,{
+    type:"line",
+    data:{
+      labels:existingData.map((_,i)=>i),
+      datasets:[{
+        data:[...existingData],
+        borderColor:color,borderWidth:2,tension:.4,pointRadius:0,
+        fill:{target:"origin",above:color+"14"},
+      }]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,animation:false,
+      plugins:{legend:{display:false},tooltip:{enabled:true,backgroundColor:"#181c24",titleColor:"#94a3b8",bodyColor:"#e2e8f0",borderColor:"#2a3040",borderWidth:1,
+        callbacks:{label:c=>`${c.parsed.y.toFixed(3)} ${UNITS[feat]}`}}},
+      scales:{
+        x:{display:false},
+        y:{min:r.min,max:r.max,grid:{color:"rgba(255,255,255,.04)"},
+          ticks:{color:"#475569",font:{family:"Space Mono",size:9},callback:v=>`${v}${UNITS[feat]}`}}
+      }
+    }
+  });
+
+  const ov=document.getElementById("overlay");
+  ov.style.display="flex";
+  ov.classList.remove("closing");
+}
+
+function tickDetail(){
+  if(!detChart||!detMetric||!latestData)return;
+  const v=latestData?.values?.[detMetric]; if(v==null)return;
+  const ds=detChart.data.datasets[0];
+  ds.data.push(v);
+  detChart.data.labels.push(ds.data.length);
+  if(ds.data.length>MAXPTS*2){ds.data.shift();detChart.data.labels.shift();}
+
+  document.getElementById("d-val").textContent=Number(v).toFixed(2);
+  document.getElementById("ds-now").textContent=`${Number(v).toFixed(3)} ${UNITS[detMetric]}`;
+  const s=SS[detMetric];
+  if(s.n){
+    document.getElementById("ds-min").textContent=`${s.min.toFixed(2)} ${UNITS[detMetric]}`;
+    document.getElementById("ds-max").textContent=`${s.max.toFixed(2)} ${UNITS[detMetric]}`;
+    document.getElementById("ds-avg").textContent=`${(s.sum/s.n).toFixed(2)} ${UNITS[detMetric]}`;
+  }
+  detChart.update("none");
+}
+
+function closeDetail(){
+  const ov=document.getElementById("overlay");
+  ov.classList.add("closing");
+  setTimeout(()=>{ov.style.display="none";ov.classList.remove("closing");},200);
+}
+window._overlayClick=e=>{if(e.target===document.getElementById("overlay"))closeDetail();};
+
+/* ─── Toasts ────────────────────────────────────── */
+function toast(type,title,msg){
+  const c=document.getElementById("toasts");
+  const t=document.createElement("div");
+  t.className=`toast ${type}`;
+  t.innerHTML=`<div class="toast-title">${title}</div><div class="toast-msg">${msg}</div>`;
+  t.onclick=()=>t.remove();
+  c.appendChild(t);
+  setTimeout(()=>{t.style.transition="opacity .4s";t.style.opacity="0";setTimeout(()=>t.remove(),400);},6000);
+}
+function maybeToast(d){
+  const now=Date.now();
+  if(d.status===lastStatus||now-lastToastTs<TOAST_CD)return;
+  lastToastTs=now;
+  if(d.status==="Fault")  toast("fault","⚠ Fault Detected",(d.faults||[]).join(", ")||"Unknown");
+  if(d.status==="Warning")toast("warning","⚠ Warning","Unusual readings detected");
+  if(d.status==="Normal"&&lastStatus!=="Normal")toast("","✓ Recovered","System back to normal");
+}
+function maybePredToast(d){
+  if(!d.prediction||d.status!=="Normal")return;
+  const k="pt_"+Math.floor(Date.now()/30000);
+  if(sessionStorage.getItem(k))return;
+  sessionStorage.setItem(k,"1");
+  toast("predict","⚑ Pattern Alert","Rising error trend — monitor for developing fault");
+}
+
+/* ─── Beep ──────────────────────────────────────── */
+function beep(hz=660,dur=.35){
+  try{const a=new AudioContext(),o=a.createOscillator(),g=a.createGain();
+  o.frequency.value=hz;g.gain.setValueAtTime(.2,a.currentTime);
+  g.gain.exponentialRampToValueAtTime(.001,a.currentTime+dur);
+  o.connect(g);g.connect(a.destination);o.start();o.stop(a.currentTime+dur);}catch{}
+}
+
+/* ─── Connection ────────────────────────────────── */
+function setConn(ok){
+  document.getElementById("conn-dot").className="conn-dot "+(ok?"online":"offline");
+  document.getElementById("conn-lbl").textContent=ok?"Connected":"Disconnected";
+}
+
+/* ─── API ───────────────────────────────────────── */
+async function fetchData(){try{const r=await fetch(`${API}/data`);return r.ok?r.json():null;}catch{return null;}}
+async function fetchHealth(){try{const r=await fetch(`${API}/health`);return r.ok?r.json():null;}catch{return null;}}
+
+/* ─── Main loop ─────────────────────────────────── */
+async function loop(){
+  const d=await fetchData();
+  if(!d){setConn(false);return;}
+  setConn(true);
+  latestData=d;
+
+  updateStatus(d.status,d.faults,d.prediction,d.mse);
+  updateMinis(d.values,d.faults);
+  updateMSE(d.mse_history);
+  updateEvList(d.history);
+  updateHistPage(d.history);
+  tickDetail();
+
+  maybeToast(d);
+  maybePredToast(d);
+  if(d.status!==lastStatus){
+    if(d.status==="Fault")beep(880);
+    if(d.status==="Warning")beep(660);
+    lastStatus=d.status;
+  }
+}
+
+/* ─── Init ──────────────────────────────────────── */
+buildGrid();
+buildMSE();
+loop();
+setInterval(loop,1000);
+setInterval(()=>{document.getElementById("clock").textContent=new Date().toLocaleTimeString();},1000);
+document.getElementById("clock").textContent=new Date().toLocaleTimeString();
+
+fetchHealth().then(h=>{
+  if(!h)return;
+  const p=document.getElementById("mode-pill");
+  p.textContent=h.mode==="real"?"REAL":"DEMO";
+  p.className="mode-pill "+(h.mode==="real"?"real":"");
+});
+
+/* ─── Navigation ────────────────────────────────── */
+window.showPage=function(id,btn){
+  document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+  document.querySelectorAll(".nav-item").forEach(b=>b.classList.remove("active"));
+  if(btn)btn.classList.add("active");
+};
+</script>
 </body>
 </html>
