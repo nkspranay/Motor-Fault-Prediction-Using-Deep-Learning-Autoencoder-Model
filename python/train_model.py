@@ -42,8 +42,12 @@ N_FEATURES = len(FEATURES)
 INPUT_DIM  = WINDOW_SIZE * N_FEATURES   # 20 × 6 = 120
 
 # Paths
-DATA_PATH   = "../data/processed/motor_data_clean.csv"
-REPORT_DIR  = "training_report"
+#DATA_PATH   = "../data/processed/motor_data_clean.csv"
+#REPORT_DIR  = "training_report"
+
+BASE_DIR   = os.path.dirname(os.path.abspath(__file__))
+DATA_PATH  = os.path.join(BASE_DIR, "..", "data", "processed", "motor_data_clean.csv")
+REPORT_DIR = os.path.join(BASE_DIR, "training_report")
 
 # ─────────────── MODEL ────────────────────
 class AutoEncoder(nn.Module):
@@ -98,6 +102,7 @@ def create_windows(data: np.ndarray, window_size: int) -> np.ndarray:
         for i in range(len(data) - window_size)
     ]
     return np.array(windows, dtype=np.float32)
+    
 
 
 # ─────────────── LOAD DATA ────────────────
@@ -143,7 +148,8 @@ def prepare_data(df: pd.DataFrame):
     # Scale to [0, 1]
     scaler = MinMaxScaler()
     X_scaled = scaler.fit_transform(X)
-    joblib.dump(scaler, "scaler.pkl")
+    #joblib.dump(scaler, "scaler.pkl")
+    joblib.dump(scaler, os.path.join(BASE_DIR, "scaler.pkl"))
     print(f"  Scaler saved    : scaler.pkl")
 
     # Create sliding windows
@@ -238,7 +244,8 @@ def train(X_train: np.ndarray, X_val: np.ndarray):
 
     # ── Restore best weights ──
     model.load_state_dict(best_state)
-    torch.save(model.state_dict(), "model.pth")
+    #torch.save(model.state_dict(), "model.pth")
+    torch.save(model.state_dict(), os.path.join(BASE_DIR, "model.pth"))
     print(f"\n  ✔ Best model saved (val_loss={best_val:.6f})")
 
     return model, train_losses, val_losses
@@ -265,8 +272,10 @@ def compute_thresholds(model: AutoEncoder, X_train: np.ndarray):
 
     threshold = float(np.percentile(overall_errors, THRESHOLD_PCT))
     warning_threshold = float(np.percentile(overall_errors, 85))
-    np.save("threshold.npy", threshold)
-    np.save("warning_threshold.npy", warning_threshold)
+    #np.save("threshold.npy", threshold)
+    np.save(os.path.join(BASE_DIR, "threshold.npy"), threshold)
+    #np.save("warning_threshold.npy", warning_threshold)
+    np.save(os.path.join(BASE_DIR, "warning_threshold.npy"), warning_threshold)
 
     print(f"  Overall threshold ({THRESHOLD_PCT}th pct) : {threshold:.6f}")
     print(f"  Warning threshold (85th pct)  : {warning_threshold:.6f}")
@@ -277,7 +286,8 @@ def compute_thresholds(model: AutoEncoder, X_train: np.ndarray):
     feat_errors = feat_errors.mean(axis=1)       # shape: (n, N_FEATURES)
 
     feature_thresholds = np.percentile(feat_errors, THRESHOLD_PCT, axis=0)
-    np.save("feature_thresholds.npy", feature_thresholds)
+    #np.save("feature_thresholds.npy", feature_thresholds)
+    np.save(os.path.join(BASE_DIR, "feature_thresholds.npy"), feature_thresholds)
 
     print(f"\n  Feature thresholds ({THRESHOLD_PCT}th pct):")
     for name, val in zip(FEATURES, feature_thresholds):

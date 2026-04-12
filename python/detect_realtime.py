@@ -8,7 +8,7 @@ upcoming faults from repeating reconstruction error patterns.
 Usage:
     python detect_realtime.py
 """
-
+import os
 import torch
 import serial
 import numpy as np
@@ -16,6 +16,8 @@ import joblib
 from torch import nn
 from collections import deque
 import time
+from typing import Tuple, List
+
 
 # ─────────────── CONFIG ───────────────────
 PORT              = "COM5"
@@ -23,12 +25,15 @@ BAUD              = 115200
 WINDOW_SIZE       = 20
 N_FEATURES        = 6
 INPUT_DIM         = WINDOW_SIZE * N_FEATURES
-CONFIRMATION_COUNT = 3       # Consecutive anomalies before confirmed fault
-HISTORY_SIZE      = 50       # MSE history for trend detection
-TREND_WINDOW      = 20       # Sliding window for trend analysis
-TREND_THRESHOLD   = 0.6      # Pearson r for "rising trend" detection
+CONFIRMATION_COUNT = 3
+HISTORY_SIZE      = 50
+TREND_WINDOW      = 20
+TREND_THRESHOLD   = 0.6
 
 FEATURES = ["Voltage", "Current", "Power", "Temperature", "Humidity", "Vibration"]
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 
 # ─────────────── MODEL ────────────────────
 class AutoEncoder(nn.Module):
@@ -51,13 +56,13 @@ class AutoEncoder(nn.Module):
 # ─────────────── LOAD FILES ───────────────
 print("Loading model...")
 model = AutoEncoder(INPUT_DIM)
-model.load_state_dict(torch.load("model.pth", map_location="cpu"))
+model.load_state_dict(torch.load(os.path.join(BASE_DIR, "model.pth"), map_location="cpu"))
 model.eval()
 
-scaler             = joblib.load("scaler.pkl")
-THRESHOLD          = float(np.load("threshold.npy"))
-WARNING_THRESHOLD  = float(np.load("warning_threshold.npy"))
-feature_thresholds = np.load("feature_thresholds.npy")
+scaler             = joblib.load(os.path.join(BASE_DIR, "scaler.pkl"))
+THRESHOLD          = float(np.load(os.path.join(BASE_DIR, "threshold.npy")))
+WARNING_THRESHOLD  = float(np.load(os.path.join(BASE_DIR, "warning_threshold.npy")))
+feature_thresholds = np.load(os.path.join(BASE_DIR, "feature_thresholds.npy"))
 
 feature_mins = scaler.data_min_
 feature_maxs = scaler.data_max_
@@ -66,25 +71,21 @@ print(f"  Fault threshold   : {THRESHOLD:.6f}")
 print(f"  Warning threshold : {WARNING_THRESHOLD:.6f}")
 print(f"  Feature thresholds: {feature_thresholds}")
 
+
 # ─────────────── STATE ────────────────────
 buffer          = deque(maxlen=WINDOW_SIZE)
 anomaly_counter = 0
-mse_history     = deque(maxlen=HISTORY_SIZE)   # For trend detection
+mse_history     = deque(maxlen=HISTORY_SIZE)
+
 
 # ─────────────── TREND DETECTOR ───────────
-def detect_rising_trend(history: deque) -> tuple[bool, float]:
-    """
-    Returns (is_rising, slope) based on linear regression of recent MSE values.
-    A consistently rising reconstruction error before threshold is crossed
-    is an early warning of an upcoming fault.
-    """
+def detect_rising_trend(history: deque) -> Tuple[bool, float]:
     if len(history) < TREND_WINDOW:
         return False, 0.0
 
     values = np.array(list(history)[-TREND_WINDOW:])
     x      = np.arange(len(values), dtype=float)
 
-    # Pearson correlation as trend strength
     if values.std() < 1e-10:
         return False, 0.0
 
@@ -96,11 +97,7 @@ def detect_rising_trend(history: deque) -> tuple[bool, float]:
 
 
 # ─────────────── FAULT CLASSIFIER ─────────
-def classify_faults(feature_errors: np.ndarray, vals_original: np.ndarray) -> list[dict]:
-    """
-    For each feature exceeding its threshold, classify the fault type
-    using actual physical values (not scaled).
-    """
+def classify_faults(feature_errors: np.ndarray, vals_original: np.ndarray) -> List[dict]:
     faults = []
     for i, fe in enumerate(feature_errors):
         if fe > feature_thresholds[i]:
@@ -109,7 +106,6 @@ def classify_faults(feature_errors: np.ndarray, vals_original: np.ndarray) -> li
             f_max    = feature_maxs[i]
             midpoint = (f_min + f_max) / 2
 
-            # Classify based on position within training range
             if val > f_max * 1.05:
                 fault_type = "HIGH"
             elif val < f_min * 0.95:
@@ -133,10 +129,10 @@ UNITS = ["V", "A", "W", "°C", "%", ""]
 
 def print_status(status, loss, vals, faults=None, trend=False, slope=0.0):
     status_color = {
-        "NORMAL" : "\033[92m",   # green
-        "WARNING": "\033[93m",   # yellow
-        "FAULT"  : "\033[91m",   # red
-        "PREDICT": "\033[95m",   # magenta
+        "NORMAL" : "\033[92m",
+        "WARNING": "\033[93m",
+        "FAULT"  : "\033[91m",
+        "PREDICT": "\033[95m",
     }.get(status, "")
     RESET = "\033[0m"
 
@@ -167,6 +163,7 @@ except serial.SerialException as e:
     print(f"✘ Could not open {PORT}: {e}")
     raise SystemExit(1)
 
+
 # ─────────────── MAIN LOOP ────────────────
 print(f"{'─' * 60}")
 print(f"  Motor Fault Detection — Real-time")
@@ -191,7 +188,6 @@ try:
         except ValueError:
             continue
 
-        # Scale
         vals_scaled = scaler.transform([vals])[0]
         buffer.append(vals_scaled)
 
@@ -199,28 +195,22 @@ try:
             print(f"  Buffering... {len(buffer)}/{WINDOW_SIZE}", end="\r")
             continue
 
-        # ── Inference ──
-        x = torch.tensor(
-            np.array(buffer).reshape(1, -1),
-            dtype=torch.float32
-        )
+        x = torch.tensor(np.array(buffer).reshape(1, -1), dtype=torch.float32)
+
         with torch.no_grad():
-            recon         = model(x)
-            loss          = torch.mean((recon - x) ** 2).item()
-            feat_errors   = (recon - x).numpy().reshape(WINDOW_SIZE, N_FEATURES).mean(axis=0)
+            recon       = model(x)
+            loss        = torch.mean((recon - x) ** 2).item()
+            feat_errors = (recon - x).numpy().reshape(WINDOW_SIZE, N_FEATURES).mean(axis=0)
 
         mse_history.append(loss)
 
-        # ── Trend detection ──
         is_rising, slope = detect_rising_trend(mse_history)
 
-        # ── Anomaly logic ──
         if loss > THRESHOLD:
             anomaly_counter += 1
         else:
             anomaly_counter = 0
 
-        # ── Determine status ──
         if anomaly_counter >= CONFIRMATION_COUNT:
             faults = classify_faults(feat_errors, vals)
             print_status("FAULT", loss, vals, faults=faults)
@@ -229,7 +219,6 @@ try:
             print_status("WARNING", loss, vals)
 
         elif is_rising and loss > WARNING_THRESHOLD * 0.7:
-            # Error trending up but hasn't crossed warning yet
             print_status("PREDICT", loss, vals, trend=True, slope=slope)
 
         else:

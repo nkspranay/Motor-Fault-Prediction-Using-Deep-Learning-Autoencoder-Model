@@ -20,6 +20,13 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
+
+BASE_DIR      = os.path.dirname(os.path.abspath(__file__))
+RAW_DIR       = os.path.join(BASE_DIR, "..", "data", "raw")
+PROCESSED_DIR = os.path.join(BASE_DIR, "..", "data", "processed")
+OUTPUT_FILE   = os.path.join(PROCESSED_DIR, "motor_data_clean.csv")
+PLOTS_DIR     = os.path.join(PROCESSED_DIR, "plots")
+
 # ─────────────────────────────────────────────────────────────
 # SPEED THRESHOLDS  ← Update these after your first session
 # ─────────────────────────────────────────────────────────────
@@ -42,10 +49,10 @@ SPEED_THRESHOLDS = {
 # ─────────────────────────────────────────────────────────────
 
 # Paths
-RAW_DIR       = "../data/raw"
-PROCESSED_DIR = "../data/processed"
-OUTPUT_FILE   = os.path.join(PROCESSED_DIR, "motor_data_clean.csv")
-PLOTS_DIR     = os.path.join(PROCESSED_DIR, "plots")
+#RAW_DIR       = "../data/raw"
+#PROCESSED_DIR = "../data/processed"
+#OUTPUT_FILE   = os.path.join(PROCESSED_DIR, "motor_data_clean.csv")
+#PLOTS_DIR     = os.path.join(PROCESSED_DIR, "plots")
 
 # Physical sanity bounds — rows outside these are sensor errors
 BOUNDS = {

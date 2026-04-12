@@ -23,10 +23,14 @@ import time
 import threading
 from datetime import datetime
 
+# Same fix for serial_logger.py:
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.join(BASE_DIR, "..", "data", "raw")
+
 # ─────────────── CONFIG ───────────────────
 PORT        = "COM5"        # Change to your port (Linux: /dev/ttyUSB0)
 BAUD        = 115200
-DATA_DIR    = "../data"
+#DATA_DIR    = "../data/raw"
 HEADER      = ["timestamp", "voltage", "current", "power",
                "temperature", "humidity", "vibration"]
 

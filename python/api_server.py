@@ -21,6 +21,7 @@ from collections import deque
 from datetime import datetime
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from typing import Tuple, List  
 
 # ─────────────── CONFIG ───────────────────
 PORT        = "COM5"
@@ -33,6 +34,11 @@ TREND_WINDOW = 20
 TREND_THRESHOLD = 0.6
 
 FEATURES = ["Voltage", "Current", "Power", "Temperature", "Humidity", "Vibration"]
+
+# ─────────────── THRESHOLDS ───────────────
+THRESHOLD         = 0.0
+WARNING_THRESHOLD = 0.0
+feature_thresholds = np.zeros(N_FEATURES)
 
 # ─────────────── APP ──────────────────────
 app = FastAPI()
@@ -132,7 +138,7 @@ def set_state(**kwargs):
 
 
 # ─────────────── TREND ────────────────────
-def detect_rising_trend() -> tuple[bool, float]:
+def detect_rising_trend() -> Tuple[bool, float]:
     if len(mse_deque) < TREND_WINDOW:
         return False, 0.0
     values = np.array(list(mse_deque)[-TREND_WINDOW:])
@@ -148,7 +154,7 @@ def detect_rising_trend() -> tuple[bool, float]:
 _dummy_temp   = 35.0
 _dummy_step   = 0
 
-def generate_dummy() -> tuple[dict, str, list, bool]:
+def generate_dummy() -> Tuple[dict, str, List, bool]:
     global _dummy_temp, _dummy_step
     _dummy_step += 1
 
@@ -210,7 +216,7 @@ def detection_loop():
                     _state["prediction"] = prediction
                     _state["mse"]        = 0.0
 
-                    if status != "Normal":
+                    if status != "Normal" or prediction:
                         _state["history"].append({
                             "time"      : datetime.now().isoformat(timespec="seconds"),
                             "status"    : status,
@@ -316,10 +322,12 @@ def get_history():
     with _lock:
         return {"history": list(_state["history"])}
 
+# Fix the health endpoint:
 @app.get("/health")
 def health():
     return {
-        "model_loaded": model_loaded,
-        "mode"        : "real" if model_loaded else "dummy",
-        "threshold"   : THRESHOLD if model_loaded else None,
+        "model_loaded"   : model_loaded,
+        "mode"           : "real" if model_loaded else "dummy",
+        "fault_threshold": THRESHOLD if model_loaded else None,
+        "warn_threshold" : WARNING_THRESHOLD if model_loaded else None,
     }
