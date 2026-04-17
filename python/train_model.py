@@ -11,7 +11,9 @@ Outputs (all in python/):
     model.pth
     scaler.pkl
     threshold.npy
-    feature_thresholds.npy
+    warning_threshold.npy
+    feature_means.npy
+    feature_stds.npy
     training_report/   (plots + summary)
 """
 
@@ -33,7 +35,8 @@ BATCH_SIZE     = 64
 MAX_EPOCHS     = 100
 LR             = 0.001
 PATIENCE       = 10       # Early stopping patience (epochs)
-THRESHOLD_PCT  = 95       # Percentile for anomaly threshold (not 3-sigma)
+THRESHOLD_PCT  = 99.5     # Percentile for anomaly threshold (not 3-sigma)
+WARNING_PCT    = 97       # Percentile for warning threshold
 TRAIN_SPLIT    = 0.80
 
 FEATURES = ["voltage", "current", "power", "temperature", "humidity", "vibration"]
@@ -144,6 +147,15 @@ def prepare_data(df: pd.DataFrame):
     print_section("2. Scaling and windowing")
 
     X = df[FEATURES].values
+
+    # Save feature mean and std (NEW)
+    feature_means = df[FEATURES].mean().values
+    feature_stds  = df[FEATURES].std().values
+
+    np.save(os.path.join(BASE_DIR, "feature_means.npy"), feature_means)
+    np.save(os.path.join(BASE_DIR, "feature_stds.npy"), feature_stds)
+
+    print("  Saved feature_means.npy and feature_stds.npy")
 
     # Scale to [0, 1]
     scaler = MinMaxScaler()
@@ -271,29 +283,16 @@ def compute_thresholds(model: AutoEncoder, X_train: np.ndarray):
     overall_errors = errors.mean(dim=1).numpy()  # shape: (n,)
 
     threshold = float(np.percentile(overall_errors, THRESHOLD_PCT))
-    warning_threshold = float(np.percentile(overall_errors, 85))
+    warning_threshold = float(np.percentile(overall_errors, WARNING_PCT))
     #np.save("threshold.npy", threshold)
     np.save(os.path.join(BASE_DIR, "threshold.npy"), threshold)
     #np.save("warning_threshold.npy", warning_threshold)
     np.save(os.path.join(BASE_DIR, "warning_threshold.npy"), warning_threshold)
 
     print(f"  Overall threshold ({THRESHOLD_PCT}th pct) : {threshold:.6f}")
-    print(f"  Warning threshold (85th pct)  : {warning_threshold:.6f}")
+    print(f"  Warning threshold ({WARNING_PCT}th pct)  : {warning_threshold:.6f}")
 
-    # ── Feature-wise thresholds ──
-    # Reshape errors to (n_windows, WINDOW_SIZE, N_FEATURES)
-    feat_errors = errors.numpy().reshape(-1, WINDOW_SIZE, N_FEATURES)
-    feat_errors = feat_errors.mean(axis=1)       # shape: (n, N_FEATURES)
-
-    feature_thresholds = np.percentile(feat_errors, THRESHOLD_PCT, axis=0)
-    #np.save("feature_thresholds.npy", feature_thresholds)
-    np.save(os.path.join(BASE_DIR, "feature_thresholds.npy"), feature_thresholds)
-
-    print(f"\n  Feature thresholds ({THRESHOLD_PCT}th pct):")
-    for name, val in zip(FEATURES, feature_thresholds):
-        print(f"    {name:12s} : {val:.6f}")
-
-    return overall_errors, threshold, warning_threshold, feature_thresholds
+    return overall_errors, threshold, warning_threshold
 
 
 # ─────────────── PLOTS ────────────────────
@@ -323,7 +322,7 @@ def save_report(train_losses, val_losses, overall_errors, threshold, warning_thr
     ax.axvline(threshold,         color="red",    linestyle="--", linewidth=1.5,
                label=f"Fault threshold ({THRESHOLD_PCT}th pct) = {threshold:.5f}")
     ax.axvline(warning_threshold, color="orange", linestyle="--", linewidth=1.5,
-               label=f"Warning threshold (85th pct) = {warning_threshold:.5f}")
+               label=f"Warning threshold ({WARNING_PCT}th pct) = {warning_threshold:.5f}")
     ax.set_title("Reconstruction Error Distribution (Training Data)")
     ax.set_xlabel("MSE")
     ax.set_ylabel("Count")
@@ -344,7 +343,7 @@ def save_report(train_losses, val_losses, overall_errors, threshold, warning_thr
         f"Final val loss    : {val_losses[-1]:.6f}\n"
         f"Best val loss     : {min(val_losses):.6f} @ epoch {val_losses.index(min(val_losses)) + 1}\n"
         f"Fault threshold   : {threshold:.6f} ({THRESHOLD_PCT}th percentile)\n"
-        f"Warning threshold : {warning_threshold:.6f} (85th percentile)\n"
+        f"Warning threshold : {warning_threshold:.6f} ({WARNING_PCT}th percentile)\n"
         f"Window size       : {WINDOW_SIZE}\n"
         f"Features          : {', '.join(FEATURES)}\n"
         f"Input dim         : {INPUT_DIM}\n"
@@ -362,7 +361,7 @@ def main():
     df                = load_data()
     X_train, X_val, _ = prepare_data(df)
     model, t_losses, v_losses = train(X_train, X_val)
-    overall_errors, threshold, warning_threshold, _ = compute_thresholds(model, X_train)
+    overall_errors, threshold, warning_threshold = compute_thresholds(model, X_train)
     save_report(t_losses, v_losses, overall_errors, threshold, warning_threshold)
 
     print_section("Done")
@@ -371,7 +370,8 @@ def main():
     print(f"    scaler.pkl")
     print(f"    threshold.npy")
     print(f"    warning_threshold.npy")
-    print(f"    feature_thresholds.npy")
+    print(f"    feature_means.npy")
+    print(f"    feature_stds.npy")
     print(f"    {REPORT_DIR}/\n")
 
 

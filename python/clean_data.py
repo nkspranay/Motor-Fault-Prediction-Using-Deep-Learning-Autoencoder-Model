@@ -41,10 +41,10 @@ PLOTS_DIR     = os.path.join(PROCESSED_DIR, "plots")
 #   Speed 3 : 0.70 – 2.00 A  (fastest)
 #
 SPEED_THRESHOLDS = {
-    "off":     (0.00, 0.05),
-    "speed_1": (0.05, 0.30),
-    "speed_2": (0.30, 0.70),
-    "speed_3": (0.70, 2.00),
+    "off":     (0.00, 0.10),
+    "running": (0.28, 0.45),
+    #"speed_2": (0.3307, 0.3550),
+    #"speed_3": (0.3550, 0.50),
 }
 # ─────────────────────────────────────────────────────────────
 
@@ -56,9 +56,9 @@ SPEED_THRESHOLDS = {
 
 # Physical sanity bounds — rows outside these are sensor errors
 BOUNDS = {
-    "voltage"    : (150.0, 270.0),
-    "current"    : (0.0,   5.0),
-    "power"      : (0.0,   1200.0),
+    "voltage"    : (200.0, 250.0),
+    "current"    : (0.0,   0.50),
+    "power"      : (0.0,   100.0),
     "temperature": (10.0,  80.0),
     "humidity"   : (0.0,   100.0),
     "vibration"  : (0.0,   4095.0),
@@ -230,10 +230,10 @@ def save_plots(df: pd.DataFrame):
 
     colors = {
         "off"    : "#94a3b8",
-        "speed_1": "#34d399",
-        "speed_2": "#60a5fa",
-        "speed_3": "#f87171",
-        "unknown": "#fbbf24",
+        "running": "#34d399",
+        #"speed_2": "#60a5fa",
+        #"speed_3": "#f87171",
+        #"unknown": "#fbbf24",
     }
 
     # ── Current distribution ──

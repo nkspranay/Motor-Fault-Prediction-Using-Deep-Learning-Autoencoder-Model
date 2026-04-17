@@ -197,9 +197,10 @@ def log_event(status: str, faults: list, mse: float):
 
 # ─────────────── DETECTION LOOP ───────────
 anomaly_counter = 0
+fault_active = False
 
 def detection_loop():
-    global anomaly_counter
+    global anomaly_counter, fault_active
 
     while True:
         try:
@@ -265,19 +266,32 @@ def detection_loop():
                 else:
                     anomaly_counter = 0
 
+                # Trigger FAULT
+                if anomaly_counter >= 3 and not fault_active:
+                    fault_active = True
+
                 # Status
                 faults = []
-                if anomaly_counter >= 3:
+
+                if fault_active:
+                    anomaly_counter = 3
                     status = "Fault"
+
                     for i, fe in enumerate(feat_errors):
                         if fe > feature_thresholds[i]:
                             faults.append(FEATURES[i])
+
+                    # Exit FAULT only when fully normal
+                    if loss <= WARNING_THRESHOLD:
+                        fault_active = False
+                        anomaly_counter = 0
+
                 elif loss > WARNING_THRESHOLD:
                     status = "Warning"
                 else:
                     status = "Normal"
 
-                prediction = is_rising and status == "Normal" and loss > WARNING_THRESHOLD * 0.7
+                prediction = is_rising and not fault_active and loss > WARNING_THRESHOLD * 0.7
 
                 vals_dict = {
                     FEATURES[i]: round(float(vals_arr[i]), 3)
