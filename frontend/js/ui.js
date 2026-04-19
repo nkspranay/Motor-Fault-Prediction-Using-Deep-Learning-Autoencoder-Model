@@ -82,6 +82,20 @@ export function updateHistory(history) {
             .join(", ")}
      </div>`
   : "";
+  
+
+    const analysisText = item.analysis
+    ? `
+      <div style="font-size:0.8rem;color:#374151;margin-top:4px">
+        🧠 ${item.analysis.inference}
+      </div>
+      ${item.analysis.recommendations?.length > 0 ? `
+        <div style="font-size:0.78rem;color:#6b7280">
+          ⚙ ${item.analysis.recommendations.join(", ")}
+        </div>
+      ` : ""}
+    `
+    : "";
 
     const predText = item.prediction
       ? `<div style="color:#7c3aed;font-size:0.8rem">⚑ Prediction triggered</div>`
@@ -94,6 +108,7 @@ export function updateHistory(history) {
           <span style="color:#94a3b8;font-size:0.78rem">${item.time}</span>
         </div>
         ${faultText}
+        ${analysisText}
         ${predText}
       </div>`;
   });
