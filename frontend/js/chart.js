@@ -15,7 +15,7 @@ const COLORS = {
   Temperature: "#f59e0b",
   Power      : "#7c3aed",
   Humidity   : "#06b6d4",
-  Vibration  : "#ef4444",
+  Vibration  : "#6366f1",
 };
 
 // ── Feature chart ──
@@ -123,5 +123,32 @@ export function updateMSEChart(chart, mseHistory) {
   if (!mseHistory || mseHistory.length === 0) return;
   chart.data.labels   = mseHistory.map((_, i) => i);
   chart.data.datasets[0].data = mseHistory;
+  chart.update("none");
+}
+
+export function setChartBackground(chart, status) {
+  if (!chart) return;
+
+  const color =
+    status === "Fault"   ? "rgba(239,68,68,0.15)" :
+    status === "Warning" ? "rgba(245,158,11,0.15)" :
+                           "rgba(0,0,0,0)";
+
+  // create plugin once
+  if (!chart.$bgPlugin) {
+    chart.$bgPlugin = {
+      id: "custom_bg",
+      beforeDraw(c) {
+        const ctx = c.ctx;
+        ctx.save();
+        ctx.fillStyle = c.$bgColor || "transparent";
+        ctx.fillRect(0, 0, c.width, c.height);
+        ctx.restore();
+      }
+    };
+    chart.config.plugins.push(chart.$bgPlugin);
+  }
+
+  chart.$bgColor = color;
   chart.update("none");
 }

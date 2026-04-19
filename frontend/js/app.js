@@ -1,6 +1,7 @@
 import { fetchData, fetchHealth } from "./api.js";
 import { createChart, updateChart, switchMetric, createMSEChart, updateMSEChart } from "./chart.js";
 import { updateStatus, updateMetrics, updateHistory, showToast, setConnected } from "./ui.js";
+import { setChartBackground } from "./chart.js";
 
 let chart;
 let mseChart;
@@ -38,6 +39,8 @@ async function mainLoop() {
   }
   setConnected(true);
 
+  setChartBackground(chart, data.status);
+
   updateStatus(data.status, data.prediction);
   updateMetrics(data.values);
   updateHistory(data.history);
@@ -54,7 +57,9 @@ async function mainLoop() {
     }
 
     if (data.status === "Fault") {
-      const faultList = (data.faults || []).join(", ") || "Unknown";
+      const faultList = (data.faults || [])
+  .map(f => `${f.feature} (${f.type})`)
+  .join(", ") || "Unknown";
       showToast("fault", "Fault Detected", `Affected: ${faultList}`);
       playBeep("fault");
     }
@@ -78,14 +83,16 @@ async function mainLoop() {
 
   // ── Auto-switch chart to faulted feature ──
   if (data.status === "Fault" && (data.faults || []).length > 0) {
-    const faultMetric = data.faults[0];
+    const faultMetric = data.faults[0]?.feature;
     if (faultMetric !== currentMetric) {
       currentMetric = faultMetric;
       switchMetric(chart, faultMetric);
     }
   }
 
-  const isAnomaly = (data.faults || []).includes(currentMetric);
+  const isAnomaly = (data.faults || [])
+  .map(f => f.feature)
+  .includes(currentMetric);
   updateChart(chart, data.values[currentMetric], isAnomaly);
 }
 

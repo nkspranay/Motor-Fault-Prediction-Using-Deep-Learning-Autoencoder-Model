@@ -76,8 +76,12 @@ export function updateHistory(history) {
     }[item.status] || "#6366f1";
 
     const faultText = (item.faults || []).length > 0
-      ? `<div style="color:${statusColor};font-size:0.85rem">⚠ ${item.faults.join(", ")}</div>`
-      : "";
+  ? `<div style="color:${statusColor};font-size:0.85rem">
+       ⚠ ${(item.faults || [])
+            .map(f => `${f.feature} (${f.type})`)
+            .join(", ")}
+     </div>`
+  : "";
 
     const predText = item.prediction
       ? `<div style="color:#7c3aed;font-size:0.8rem">⚑ Prediction triggered</div>`
