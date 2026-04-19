@@ -379,12 +379,6 @@ def detection_loop():
 
             current_reading = vals_arr[1]
 
-            # ── Glitch filter ──
-            if ds.active is not None:
-                if is_glitch(vals_arr, ds.active["feature_means"],
-                             ds.active["feature_stds"]):
-                    continue
-
             # ── State detection ──
             detected = None
             if not (DEADBAND_LOW <= current_reading < DEADBAND_HIGH):
@@ -410,6 +404,17 @@ def detection_loop():
                 ds.pending_state = None
                 ds.pending_ctr   = 0
 
+            # ── Glitch filter ──
+            if ds.active is not None and ds.pending_state is None:
+                if is_glitch(vals_arr, ds.active["feature_means"],
+                             ds.active["feature_stds"]):
+                    vals_dict = {FEATURES[i]: round(float(vals_arr[i]), 3) for i in range(N_FEATURES)}
+                    with _lock:
+                        _state["values"] = vals_dict
+                        _state["motor_state"] = ds.current_state
+                    continue
+
+
             if ds.active is None:
                 continue
 
@@ -425,6 +430,13 @@ def detection_loop():
                     ds.buffer.clear()
                     ds.mse_deque.clear()
                     ds.reset_counters()
+                    vals_dict = {FEATURES[i]: round(float(vals_arr[i]), 3) for i in range(N_FEATURES)}
+                    with _lock:
+                        _state["values"] = vals_dict
+                        _state["motor_state"] = ds.current_state
+                        _state["status"] = "Normal"
+                        _state["faults"] = []
+                        _state["prediction"] = False
                     continue
 
             # ── Scale + buffer ──
@@ -432,6 +444,12 @@ def detection_loop():
                 ds.active["scaler"].transform([vals_arr])[0], 0.0, 1.0
             )
             ds.buffer.append(vals_scaled)
+
+            # Always push live sensor values to the frontend, even while buffer is filling
+            vals_dict = {FEATURES[i]: round(float(vals_arr[i]), 3) for i in range(N_FEATURES)}
+            with _lock:
+                _state["values"] = vals_dict
+                _state["motor_state"] = ds.current_state
 
             if len(ds.buffer) < WINDOW_SIZE:
                 continue
