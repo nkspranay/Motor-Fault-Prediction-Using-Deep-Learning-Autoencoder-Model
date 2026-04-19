@@ -44,7 +44,7 @@ except ImportError:
 
 
 # ─────────────── CONFIG ───────────────────
-PORT        = "COM5"
+PORT        = "COM7"
 BAUD        = 115200
 WINDOW_SIZE = 20
 N_FEATURES  = 6
@@ -74,7 +74,7 @@ SAFETY_LIMITS = {
     "Current"    : (0.05,  0.42),
     "Power"      : (10.0,  95.0),
     "Temperature": (20.0,  60.0),
-    "Vibration"  : (500.0, 4095.0),
+    "Vibration"  : (2500.0, 4095.0),
 }
 SAFETY_CONFIRM_COUNT = 3
 
@@ -210,7 +210,12 @@ def check_safety(vals: np.ndarray, counters: dict) -> List[dict]:
                                 "value": round(float(vals[i]), 3)})
     return violations
 
-
+def is_within_band(vals, means, stds, k=3.5):
+    for i in range(len(vals)):
+        if stds[i] > 0:
+            if abs(vals[i] - means[i]) > k * stds[i]:
+                return False
+    return True
 def classify_faults(vals: np.ndarray, means: np.ndarray,
                     stds: np.ndarray) -> List[dict]:
     faults = []
@@ -437,22 +442,35 @@ def detection_loop():
             )
             with torch.no_grad():
                 recon = ds.active["model"](x)
-                loss  = torch.mean((recon - x) ** 2).item()
+                loss  = float(torch.mean((recon - x) ** 2).item())
 
             ds.mse_deque.append(loss)
             is_rising, _ = detect_rising_trend(ds.mse_deque)
+            is_rising = bool(is_rising)
+
 
             thr  = ds.active["threshold"]
             warn = ds.active["warning_threshold"]
 
-            # ── Status machine ──
-            fault_trigger   = (loss > thr)  or bool(sustained_safety)
-            warning_trigger = (loss > warn) or bool(sustained_safety)
+            within_band = bool(is_within_band(
+                vals_arr,
+                ds.active["feature_means"],
+                ds.active["feature_stds"],
+                k=3.5
+            ))            
 
-            if fault_trigger:
+            # ── Status machine ──
+            # FAULT trigger (fixed)
+            if loss > thr or sustained_safety:
                 ds.anomaly_ctr += 1
             else:
                 ds.anomaly_ctr = 0
+
+            # WARNING trigger (fixed)
+            warning_trigger = (
+                ((loss > warn * 1.5) and not within_band)
+                or bool(sustained_safety)
+)
 
             if ds.anomaly_ctr >= CONFIRMATION_COUNT:
                 ds.fault_active   = True
@@ -464,38 +482,53 @@ def detection_loop():
                     vals_arr, ds.active["feature_means"], ds.active["feature_stds"]
                 )
                 faults.extend(sustained_safety)
-                if loss <= warn and not sustained_safety:
+                if loss < thr * 0.9 and within_band and not sustained_safety:
                     ds.fault_active   = False
                     ds.warning_active = False
                     ds.anomaly_ctr    = 0
                     ds.warning_ctr    = 0
                     ds.mse_deque.clear()
 
-            elif ds.warning_active or warning_trigger:
-                ds.warning_ctr += 1
-                if ds.warning_ctr >= WARNING_COUNT:
-                    ds.warning_active = True
-
-                if ds.warning_active:
-                    status = "Warning"
-                    faults = []
-                    if loss > warn:
-                        faults.append({"feature": "System",
-                                       "type": "PATTERN_DEVIATION",
-                                       "value": round(loss, 6)})
-                    faults.extend(sustained_safety)
-                    if loss <= warn and not sustained_safety:
-                        ds.warning_active = False
-                        ds.warning_ctr    = 0
+            # Step A: update counter
+            if not ds.fault_active and warning_trigger:
+                if loss > warn * 1.2 and not within_band:
+                    ds.warning_ctr += 1
                 else:
-                    status = "Normal"
-                    faults = []
-            else:
-                ds.warning_ctr = 0
-                status = "Normal"
+                    ds.warning_ctr = 0
+
+            # Step B: activate warning
+            if not ds.fault_active and ds.warning_ctr >= WARNING_COUNT:
+                ds.warning_active = True
+
+            # Step C: if warning is active → show warning
+            if not ds.fault_active and ds.warning_active:
+                status = "Warning"
                 faults = []
 
-            prediction = (
+                if loss > warn:
+                    faults.append({
+                        "feature": "System",
+                        "type": "PATTERN_DEVIATION",
+                        "value": round(loss, 6)
+                    })
+
+                faults.extend(sustained_safety)
+
+                # Step D: exit condition
+                if loss < warn * 0.9 and within_band and not sustained_safety:
+                    ds.warning_active = False
+                    ds.warning_ctr = 0
+
+            # Step E: if NOT fault and NOT warning → normal
+            elif not ds.fault_active and not ds.warning_active:
+                status = "Normal"
+                faults = []
+            #else:
+             #   ds.warning_ctr = 0
+              #  status = "Normal"
+               # faults = []
+
+            prediction = bool(
                 is_rising and not ds.fault_active
                 and not ds.warning_active
                 and loss > warn * 0.7
@@ -513,12 +546,45 @@ def detection_loop():
                 _state["mse"]         = round(loss, 6)
                 _state["mse_history"].append(round(loss, 6))
 
-                if status != "Normal" or prediction:
+                def generate_analysis(status, faults, loss, warn, thr):
+                    if status == "Fault":
+                        return {
+                            "condition": "Critical Fault",
+                            "inference": f"Multiple anomalies detected (MSE={round(loss,6)} exceeds threshold)",
+                            "recommendations": [
+                                "Reduce load immediately",
+                                "Inspect wiring and connections",
+                                "Check cooling system",
+                                "Shut down if persists"
+                            ]
+                        }
+
+                    if status == "Warning":
+                        return {
+                            "condition": "Warning",
+                            "inference": f"Abnormal pattern forming (MSE rising: {round(loss,6)})",
+                            "recommendations": [
+                                "Monitor system closely",
+                                "Check for early signs of overload",
+                                "Inspect environment conditions"
+                            ]
+                        }
+
+                    return {
+                        "condition": "Normal",
+                        "inference": "System operating within normal parameters",
+                        "recommendations": []
+                    }
+
+                if status in ["Fault", "Warning"] or prediction:
+
+                    analysis = generate_analysis(status, faults, loss, warn, thr)
                     _state["history"].append({
                         "time"       : datetime.now().isoformat(timespec="seconds"),
                         "status"     : status,
                         "motor_state": ds.current_state,
                         "faults"     : faults,
+                        "analysis"   : analysis,
                         "prediction" : prediction,
                     })
                     _state["history"] = _state["history"][-HISTORY_MAX:]
