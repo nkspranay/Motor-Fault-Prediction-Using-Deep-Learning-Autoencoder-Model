@@ -605,7 +605,19 @@ function updateHistPage(history){
   el.innerHTML=[...history].reverse().map(h=>{
     const dc=DOT_CLR[h.status]||"#6366f1";
     const txt=(h.faults||[]).map(f=>`${f.feature} (${f.type})`).join(", ")||(h.prediction?"Error trend":"—");
-    return`<div class="hist-item"><div class="hist-dot" style="background:${dc}"></div><div class="hist-body"><div class="hist-status" style="color:${dc}">${h.status}${h.prediction?" · Prediction":""}</div><div class="hist-detail">${txt}</div></div><div class="hist-time">${(h.time||"").slice(11,19)}</div></div>`;
+
+    const analysisHTML = h.analysis ? `
+      <div style="margin-top:6px;padding:8px 10px;border-radius:8px;background:rgba(139,92,246,0.07);border-left:3px solid rgba(139,92,246,0.4)">
+        <div style="font-size:10px;font-weight:700;color:var(--purple);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">🧠 AI Analysis</div>
+        <div style="font-size:11px;color:var(--text);line-height:1.55;margin-bottom:${h.analysis.recommendations?.length?'6px':'0'}">${h.analysis.inference}</div>
+        ${h.analysis.recommendations?.length ? `
+          <div style="font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px">Recommendations</div>
+          <ul style="list-style:none;display:flex;flex-direction:column;gap:3px;margin:0;padding:0">
+            ${h.analysis.recommendations.map(r=>`<li style="font-size:11px;color:var(--muted);display:flex;gap:6px"><span style="color:var(--green);flex-shrink:0">✓</span>${r}</li>`).join("")}
+          </ul>` : ""}
+      </div>` : "";
+
+    return`<div class="hist-item"><div class="hist-dot" style="background:${dc};margin-top:6px"></div><div class="hist-body"><div style="display:flex;justify-content:space-between;align-items:flex-start"><div><div class="hist-status" style="color:${dc}">${h.status}${h.prediction?" · Prediction":""}</div><div class="hist-detail">${txt}</div></div><div class="hist-time" style="flex-shrink:0;margin-left:12px">${(h.time||"").slice(11,19)}</div></div>${analysisHTML}</div></div>`;
   }).join("");
 }
 
