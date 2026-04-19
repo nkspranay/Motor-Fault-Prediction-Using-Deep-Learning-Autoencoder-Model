@@ -4,7 +4,9 @@ export async function fetchData() {
   try {
     const res = await fetch(`${API_BASE}/data`, { signal: AbortSignal.timeout(2000) });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return await res.json();
+    const data = await res.json();
+  console.log("API DATA:", data);  
+  return data;
   } catch (e) {
     return null;
   }
