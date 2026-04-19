@@ -66,7 +66,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 
 /* 6-chart grid */
 .chart-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;flex-shrink:0}
-
 .mini-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:13px 14px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
 .mini-card::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:var(--c,var(--border))}
 .mini-card:hover{border-color:var(--border2);transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.35)}
@@ -117,6 +116,59 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .det-badge.ok{background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);color:var(--green)}
 .det-badge.bad{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.4);color:var(--red)}
 
+/* Threshold proximity */
+.det-proximity{margin-top:14px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:14px 16px}
+.det-prox-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.det-prox-label{font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.1em}
+.det-prox-pct{font-family:var(--font-mono);font-size:11px;font-weight:700}
+.det-prox-limits{display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:9px;color:var(--muted);margin-bottom:5px}
+.det-prox-track{height:6px;background:var(--border2);border-radius:3px;overflow:hidden;margin-bottom:10px;position:relative}
+.det-prox-fill{height:100%;border-radius:3px;transition:width .5s ease,background .5s ease}
+.det-prox-hint{font-size:11px;line-height:1.6;padding:9px 12px;border-radius:8px;border-left:3px solid}
+.det-prox-hint.ok{background:rgba(16,185,129,.06);border-color:rgba(16,185,129,.4);color:#86efac}
+.det-prox-hint.caution{background:rgba(245,158,11,.08);border-color:rgba(245,158,11,.5);color:#fcd34d}
+.det-prox-hint.danger{background:rgba(239,68,68,.08);border-color:rgba(239,68,68,.5);color:#fca5a5}
+.det-prox-hint.low{background:rgba(6,182,212,.08);border-color:rgba(6,182,212,.5);color:#67e8f9}
+
+/* AI Diagnosis panel */
+.ai-diagnosis{margin-top:14px;background:var(--surface2);border:1px solid rgba(139,92,246,.25);border-radius:12px;overflow:hidden}
+.ai-diagnosis-header{display:flex;align-items:center;justify-content:space-between;padding:11px 16px;border-bottom:1px solid var(--border);background:rgba(139,92,246,.05)}
+.ai-diagnosis-title{display:flex;align-items:center;gap:8px;font-size:10px;font-weight:600;color:var(--purple);text-transform:uppercase;letter-spacing:.1em}
+.ai-sparkle{font-size:13px}
+.ai-diagnosis-body{padding:14px 16px;font-size:12px;line-height:1.7;color:var(--text)}
+.ai-diagnosis-body.loading{color:var(--muted);display:flex;align-items:center;gap:10px}
+.ai-diagnosis-body.error{color:#f87171;font-size:11px}
+.ai-typing-dots{display:inline-flex;gap:4px;align-items:center}
+.ai-typing-dots span{width:5px;height:5px;border-radius:50%;background:var(--purple);animation:typingDot 1.2s infinite}
+.ai-typing-dots span:nth-child(2){animation-delay:.2s}
+.ai-typing-dots span:nth-child(3){animation-delay:.4s}
+@keyframes typingDot{0%,80%,100%{opacity:.2;transform:scale(.8)}40%{opacity:1;transform:scale(1)}}
+.ai-section{margin-bottom:12px}
+.ai-section:last-child{margin-bottom:0}
+.ai-section-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin-bottom:6px}
+.ai-section-text{font-size:12px;line-height:1.65;color:var(--text)}
+.ai-causes{list-style:none;display:flex;flex-direction:column;gap:5px}
+.ai-causes li{display:flex;align-items:flex-start;gap:8px;font-size:12px;line-height:1.5;color:var(--text)}
+.ai-causes li::before{content:'→';color:var(--purple);font-family:var(--font-mono);flex-shrink:0;margin-top:1px}
+.ai-actions{list-style:none;display:flex;flex-direction:column;gap:5px}
+.ai-actions li{display:flex;align-items:flex-start;gap:8px;font-size:12px;line-height:1.5;color:var(--text)}
+.ai-actions li::before{content:'✓';color:var(--green);font-family:var(--font-mono);flex-shrink:0;margin-top:1px}
+.ai-refresh-btn{font-size:10px;font-family:var(--font-mono);color:var(--muted);background:none;border:1px solid var(--border2);border-radius:6px;padding:3px 9px;cursor:pointer;transition:all .15s}
+.ai-refresh-btn:hover{color:var(--purple);border-color:rgba(139,92,246,.4)}
+.ai-urgency{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;font-family:var(--font-mono);letter-spacing:.06em;margin-bottom:12px}
+.ai-urgency.low{background:rgba(16,185,129,.1);color:var(--green);border:1px solid rgba(16,185,129,.3)}
+.ai-urgency.medium{background:rgba(245,158,11,.1);color:var(--accent);border:1px solid rgba(245,158,11,.3)}
+.ai-urgency.high{background:rgba(239,68,68,.1);color:var(--red);border:1px solid rgba(239,68,68,.3)}
+.ai-urgency.critical{background:rgba(239,68,68,.15);color:#ff6b6b;border:1px solid rgba(239,68,68,.5);animation:pulseUrgency 1.5s infinite}
+@keyframes pulseUrgency{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.3)}50%{box-shadow:0 0 0 5px rgba(239,68,68,0)}}
+.ai-note{margin-top:10px;padding:9px 12px;border-radius:8px;background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.2);font-size:11px;color:#a5b4fc;line-height:1.6;font-style:italic}
+
+/* AI toast content */
+.toast-ai{margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.07)}
+.toast-ai-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--purple);margin-bottom:4px}
+.toast-ai-text{font-size:11px;color:var(--muted);line-height:1.55}
+.toast-ai-loading{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--muted)}
+
 /* History page */
 .hist-item{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:13px 16px;display:flex;align-items:flex-start;gap:12px;margin-bottom:8px}
 .hist-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:4px}
@@ -127,11 +179,11 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .hist-empty{text-align:center;color:var(--muted);font-size:13px;padding:48px 0}
 
 /* Toasts */
-#toasts{position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;max-width:290px;pointer-events:none}
+#toasts{position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;max-width:310px;pointer-events:none}
 .toast{background:var(--surface2);border-radius:10px;padding:13px 16px;border-left:3px solid var(--green);pointer-events:all;box-shadow:0 8px 32px rgba(0,0,0,.5);cursor:pointer;animation:toastIn .3s cubic-bezier(.34,1.4,.64,1)}
 .toast.warning{border-color:var(--accent)}.toast.fault{border-color:var(--red)}.toast.predict{border-color:var(--purple)}
 .toast-title{font-size:12px;font-weight:700;color:var(--text);margin-bottom:3px}
-.toast-msg{font-size:11px;color:var(--muted)}
+.toast-msg{font-size:11px;color:var(--muted);margin-bottom:2px}
 @keyframes toastIn{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:none}}
 ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
 </style>
@@ -160,6 +212,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
     </div>
     <div class="det-chart-wrap"><canvas id="det-chart"></canvas></div>
     <div id="det-badge"></div>
+    <div id="det-proximity"></div>
+    <div id="det-ai"></div>
   </div>
 </div>
 
@@ -178,7 +232,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 </nav>
 
 <main class="main">
-
   <!-- Dashboard -->
   <div id="pg-dash" class="page active">
     <div class="page-header">
@@ -223,7 +276,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
     <div class="page-header"><div class="page-title">Event Log</div></div>
     <div id="hist-list"><div class="hist-empty">No events recorded yet</div></div>
   </div>
-
 </main>
 </div>
 
@@ -231,25 +283,207 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 const API      = "http://localhost:8000";
 const FEATURES = ["Voltage","Current","Power","Temperature","Humidity","Vibration"];
 const UNITS    = {Voltage:"V",Current:"A",Power:"W",Temperature:"°C",Humidity:"%",Vibration:""};
-const COLORS   = {Voltage:"#10b981",Current:"#3b82f6",Power:"#8b5cf6",Temperature:"#f59e0b",Humidity:"#06b6d4",Vibration:"#ef4444"};
+const COLORS   = {Voltage:"#10b981",Current:"#3b82f6",Power:"#8b5cf6",Temperature:"#f59e0b",Humidity:"#06b6d4",Vibration:"#6366f1"};
 const RANGES   = {Voltage:{min:180,max:260},Current:{min:0,max:3},Power:{min:0,max:600},Temperature:{min:20,max:80},Humidity:{min:20,max:100},Vibration:{min:0,max:4095}};
 const MAXPTS   = 50;
 const DOT_CLR  = {Fault:"#ef4444",Warning:"#f59e0b",Normal:"#10b981"};
+
+const SAFETY_LIMITS = {
+  Voltage    : [200.0, 245.0],
+  Current    : [0.05,  0.42],
+  Power      : [10.0,  95.0],
+  Temperature: [20.0,  60.0],
+  Vibration  : [500.0, 4095.0],
+};
 
 let latestData  = null;
 let lastStatus  = "Normal";
 let lastToastTs = 0;
 const TOAST_CD  = 15000;
 
-// Session stats
 const SS = {};
 FEATURES.forEach(f=>{SS[f]={min:Infinity,max:-Infinity,sum:0,n:0}});
 
-// Chart instances
 const miniCharts = {};
 let mseChart = null, detChart = null, detMetric = null;
 
-/* ─── Chart helpers ─────────────────────────────── */
+/* ════════════════════════════════════════════════
+   AI DIAGNOSIS
+   ════════════════════════════════════════════════ */
+
+async function callClaude(prompt) {
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1000,
+        messages: [{ role: "user", content: prompt }]
+      })
+    });
+    const data = await res.json();
+    return data.content?.[0]?.text || null;
+  } catch(e) {
+    return null;
+  }
+}
+
+function buildDetailPrompt(feat, v, allValues, status, faults, sessionStats) {
+  const unit    = UNITS[feat] || "";
+  const limits  = SAFETY_LIMITS[feat];
+  const limStr  = limits ? `Safety limits: ${limits[0]}${unit} – ${limits[1]}${unit}.` : "No safety limits defined for this sensor.";
+  const s       = sessionStats[feat];
+  const sessStr = s && s.n > 0
+    ? `Session stats: min=${s.min.toFixed(2)}${unit}, max=${s.max.toFixed(2)}${unit}, avg=${(s.sum/s.n).toFixed(2)}${unit} over ${s.n} readings.`
+    : "No session history yet.";
+  const allStr  = Object.entries(allValues||{}).map(([k,val])=>`${k}: ${Number(val).toFixed(3)} ${UNITS[k]||""}`).join(", ");
+  const fltStr  = (faults||[]).length ? (faults||[]).map(f=>`${f.feature} (${f.type})`).join(", ") : "none";
+
+  return `You are an expert motor diagnostics engineer analysing real-time sensor data from an industrial motor monitoring system.
+
+SYSTEM STATUS: ${status}
+SENSOR IN FOCUS: ${feat} = ${Number(v).toFixed(3)}${unit}
+${limStr}
+${sessStr}
+ALL CURRENT READINGS: ${allStr}
+ACTIVE FAULTS: ${fltStr}
+
+Based on this data, provide a concise, actionable engineering diagnosis.
+
+Respond ONLY with a valid JSON object. No markdown, no backticks, no preamble. Use exactly this schema:
+{
+  "urgency": "low" | "medium" | "high" | "critical",
+  "summary": "One plain-English sentence describing what is happening and why.",
+  "likely_causes": ["Specific cause 1", "Specific cause 2", "Specific cause 3"],
+  "recommended_actions": ["Specific action 1", "Specific action 2", "Specific action 3"],
+  "additional_note": "Any important related risk, context, or follow-up to watch for — or null."
+}`;
+}
+
+function buildToastPrompt(status, faults, values) {
+  const allStr = Object.entries(values||{}).map(([k,val])=>`${k}: ${Number(val).toFixed(3)} ${UNITS[k]||""}`).join(", ");
+  const fltStr = (faults||[]).map(f=>`${f.feature} (${f.type})`).join(", ") || "pattern deviation";
+  return `You are a motor diagnostics expert. An industrial motor monitoring system has raised a ${status} alert.
+
+Active faults: ${fltStr}
+All sensor readings: ${allStr}
+
+Give a single-sentence diagnosis: what most likely caused this, and the single most important action to take right now.
+
+Respond ONLY with a valid JSON object. No markdown, no backticks:
+{
+  "urgency": "low" | "medium" | "high" | "critical",
+  "one_liner": "One sentence: likely cause + immediate action."
+}`;
+}
+
+async function fetchDetailDiagnosis(feat, v, allValues, status, faults) {
+  const raw = await callClaude(buildDetailPrompt(feat, v, allValues, status, faults, SS));
+  if (!raw) return null;
+  try { return JSON.parse(raw.replace(/```json|```/g,"").trim()); }
+  catch(e) { return { urgency:"low", summary:raw.slice(0,200), likely_causes:[], recommended_actions:[], additional_note:null }; }
+}
+
+async function fetchToastDiagnosis(status, faults, values) {
+  const raw = await callClaude(buildToastPrompt(status, faults, values));
+  if (!raw) return null;
+  try { return JSON.parse(raw.replace(/```json|```/g,"").trim()); }
+  catch(e) { return null; }
+}
+
+const URGENCY_LABEL = { low:"LOW URGENCY", medium:"MEDIUM URGENCY", high:"HIGH URGENCY", critical:"CRITICAL" };
+
+/* ── Detail panel AI rendering ── */
+function renderAILoading(container) {
+  container.innerHTML = `
+    <div class="ai-diagnosis">
+      <div class="ai-diagnosis-header">
+        <div class="ai-diagnosis-title"><span class="ai-sparkle">✦</span> AI Diagnosis</div>
+      </div>
+      <div class="ai-diagnosis-body loading">
+        <div class="ai-typing-dots"><span></span><span></span><span></span></div>
+        Analysing sensor data…
+      </div>
+    </div>`;
+}
+
+function renderAIResult(container, diag) {
+  if (!diag) {
+    container.innerHTML = `
+      <div class="ai-diagnosis">
+        <div class="ai-diagnosis-header">
+          <div class="ai-diagnosis-title"><span class="ai-sparkle">✦</span> AI Diagnosis</div>
+          <button class="ai-refresh-btn" onclick="triggerDetailDiagnosis()">↺ Retry</button>
+        </div>
+        <div class="ai-diagnosis-body error">Could not retrieve diagnosis. Check API connection or try again.</div>
+      </div>`;
+    return;
+  }
+
+  const causesHTML = diag.likely_causes?.length
+    ? `<ul class="ai-causes">${diag.likely_causes.map(c=>`<li>${c}</li>`).join("")}</ul>`
+    : `<span style="color:var(--muted);font-size:11px">None specifically identified</span>`;
+
+  const actionsHTML = diag.recommended_actions?.length
+    ? `<ul class="ai-actions">${diag.recommended_actions.map(a=>`<li>${a}</li>`).join("")}</ul>`
+    : `<span style="color:var(--muted);font-size:11px">No immediate actions required</span>`;
+
+  const noteHTML = diag.additional_note
+    ? `<div class="ai-note">💡 ${diag.additional_note}</div>`
+    : "";
+
+  container.innerHTML = `
+    <div class="ai-diagnosis">
+      <div class="ai-diagnosis-header">
+        <div class="ai-diagnosis-title"><span class="ai-sparkle">✦</span> AI Diagnosis</div>
+        <button class="ai-refresh-btn" onclick="triggerDetailDiagnosis()">↺ Refresh</button>
+      </div>
+      <div class="ai-diagnosis-body">
+        <div class="ai-urgency ${diag.urgency||'low'}">● ${URGENCY_LABEL[diag.urgency]||"INFO"}</div>
+        <div class="ai-section">
+          <div class="ai-section-label">Assessment</div>
+          <div class="ai-section-text">${diag.summary}</div>
+        </div>
+        <div class="ai-section">
+          <div class="ai-section-label">Likely Causes</div>
+          ${causesHTML}
+        </div>
+        <div class="ai-section">
+          <div class="ai-section-label">Recommended Actions</div>
+          ${actionsHTML}
+        </div>
+        ${noteHTML}
+      </div>
+    </div>`;
+}
+
+window.triggerDetailDiagnosis = async function() {
+  if (!detMetric || !latestData) return;
+  const container = document.getElementById("det-ai");
+  renderAILoading(container);
+  const v = latestData.values?.[detMetric];
+  const diag = await fetchDetailDiagnosis(detMetric, v, latestData.values, latestData.status, latestData.faults);
+  renderAIResult(container, diag);
+};
+
+/* ── Toast AI enrichment ── */
+async function enrichToast(toastEl, status, faults, values) {
+  const aiDiv = toastEl.querySelector(".toast-ai");
+  if (!aiDiv) return;
+  const diag = await fetchToastDiagnosis(status, faults, values);
+  if (!diag) {
+    aiDiv.innerHTML = `<div class="toast-ai-text" style="color:#f87171">Diagnosis unavailable</div>`;
+    return;
+  }
+  aiDiv.innerHTML = `
+    <div class="toast-ai-label">✦ AI — ${URGENCY_LABEL[diag.urgency]||"INFO"}</div>
+    <div class="toast-ai-text">${diag.one_liner}</div>`;
+}
+
+/* ════════════════════════════════════════════════
+   CHART HELPERS
+   ════════════════════════════════════════════════ */
 function mkOpts(yMin,yMax,tooltip=false){
   return{
     responsive:true,maintainAspectRatio:false,animation:false,
@@ -262,12 +496,14 @@ function mkDs(color,fill=false){
     fill:fill?{target:"origin",above:color+"16"}:false};
 }
 
-/* ─── Build 6-card grid ─────────────────────────── */
+/* ════════════════════════════════════════════════
+   BUILD GRID + MSE
+   ════════════════════════════════════════════════ */
 function buildGrid(){
-  const g = document.getElementById("grid");
+  const g=document.getElementById("grid");
   FEATURES.forEach(f=>{
-    const c = COLORS[f], r = RANGES[f];
-    const card = document.createElement("div");
+    const c=COLORS[f],r=RANGES[f];
+    const card=document.createElement("div");
     card.className="mini-card"; card.id="card-"+f;
     card.style.setProperty("--c",c);
     card.onclick=()=>openDetail(f);
@@ -278,13 +514,11 @@ function buildGrid(){
       <div class="mc-trend" id="mt-${f}">—</div>
       <div class="mc-wrap"><canvas id="mc-${f}"></canvas></div>`;
     g.appendChild(card);
-
     const ctx=document.getElementById("mc-"+f).getContext("2d");
     miniCharts[f]=new Chart(ctx,{type:"line",data:{labels:[],datasets:[mkDs(c,true)]},options:mkOpts(r.min,r.max)});
   });
 }
 
-/* ─── Build MSE chart ───────────────────────────── */
 function buildMSE(){
   const ctx=document.getElementById("mse-c").getContext("2d");
   mseChart=new Chart(ctx,{
@@ -298,20 +532,18 @@ function buildMSE(){
   });
 }
 
-/* ─── Update mini cards & charts ────────────────── */
+/* ════════════════════════════════════════════════
+   UPDATE FUNCTIONS
+   ════════════════════════════════════════════════ */
 function updateMinis(values,faults){
   if(!values)return;
-  const fset=new Set(faults||[]);
+  const fset=new Set((faults||[]).map(f=>f.feature));
   FEATURES.forEach(f=>{
     const v=values[f]; if(v==null)return;
     const s=SS[f];
     s.min=Math.min(s.min,v); s.max=Math.max(s.max,v); s.sum+=v; s.n++;
-
-    // value display
     const mv=document.getElementById("mv-"+f);
     if(mv)mv.innerHTML=`${Number(v).toFixed(2)}<span class="mc-unit"> ${UNITS[f]}</span>`;
-
-    // trend arrow
     const ch=miniCharts[f];
     const prev=ch.data.datasets[0].data.at(-1);
     const delta=prev!=null?v-prev:0;
@@ -322,11 +554,7 @@ function updateMinis(values,faults){
       mt.textContent=rising?"▲ rising":falling?"▼ falling":"— stable";
       mt.style.color=rising?(warnOnRise?"#ef4444":"#10b981"):falling?(warnOnRise?"#10b981":"#94a3b8"):"var(--muted)";
     }
-
-    // fault glow
     document.getElementById("card-"+f)?.classList.toggle("fault-card",fset.has(f));
-
-    // push to mini chart
     ch.data.labels.push("");
     ch.data.datasets[0].data.push(v);
     if(ch.data.labels.length>MAXPTS){ch.data.labels.shift();ch.data.datasets[0].data.shift();}
@@ -343,7 +571,6 @@ function updateMSE(hist){
   document.getElementById("mse-meta").textContent=(hist.at(-1)||0).toFixed(6);
 }
 
-/* ─── Status bar ────────────────────────────────── */
 const SMAP={
   Normal:{cls:"",icon:"✓",color:"var(--green)",detail:"All systems operating within normal parameters"},
   Warning:{cls:"warning",icon:"⚠",color:"var(--accent)",detail:"Unusual readings — monitoring closely"},
@@ -358,18 +585,17 @@ function updateStatus(status,faults,pred,mse){
   lbl.style.color=pred&&status==="Normal"?"var(--purple)":s.color;
   const det=document.getElementById("sdetail");
   det.textContent=pred&&status==="Normal"?"Rising error pattern — fault may be forming":
-    status==="Fault"&&faults?.length?`Affected: ${faults.join(", ")}`:s.detail;
+    status==="Fault"&&faults?.length?`Affected: ${(faults||[]).map(f=>`${f.feature} (${f.type})`).join(", ")}`:s.detail;
   document.getElementById("smse").textContent=typeof mse==="number"?mse.toFixed(6):"—";
 }
 
-/* ─── Event panels ──────────────────────────────── */
 function updateEvList(history){
   const el=document.getElementById("ev-list");
   document.getElementById("ev-count").textContent=`${history?.length||0} events`;
   if(!history?.length){el.innerHTML='<div class="no-events">No events yet</div>';return;}
   el.innerHTML=[...history].reverse().slice(0,5).map(h=>{
     const dc=DOT_CLR[h.status]||"#6366f1";
-    const txt=(h.faults||[]).join(", ")||(h.prediction?"Trend detected":"—");
+    const txt=(h.faults||[]).map(f=>`${f.feature} (${f.type})`).join(", ")||(h.prediction?"Trend detected":"—");
     return`<div class="mini-event"><div class="mini-event-dot" style="background:${dc}"></div><div class="mini-event-text">${txt}</div><div class="mini-event-time">${(h.time||"").slice(11,19)}</div></div>`;
   }).join("");
 }
@@ -378,25 +604,65 @@ function updateHistPage(history){
   if(!history?.length){el.innerHTML='<div class="hist-empty">No events recorded yet</div>';return;}
   el.innerHTML=[...history].reverse().map(h=>{
     const dc=DOT_CLR[h.status]||"#6366f1";
-    const txt=(h.faults||[]).join(", ")||(h.prediction?"Error trend":"—");
+    const txt=(h.faults||[]).map(f=>`${f.feature} (${f.type})`).join(", ")||(h.prediction?"Error trend":"—");
     return`<div class="hist-item"><div class="hist-dot" style="background:${dc}"></div><div class="hist-body"><div class="hist-status" style="color:${dc}">${h.status}${h.prediction?" · Prediction":""}</div><div class="hist-detail">${txt}</div></div><div class="hist-time">${(h.time||"").slice(11,19)}</div></div>`;
   }).join("");
 }
 
-/* ─── Detail overlay ────────────────────────────── */
+/* ════════════════════════════════════════════════
+   THRESHOLD PROXIMITY
+   ════════════════════════════════════════════════ */
+function getProximityInfo(feat, v) {
+  const limits=SAFETY_LIMITS[feat];
+  if(!limits||v==null)return null;
+  const [lo,hi]=limits, range=hi-lo;
+  const norm=Math.max(0,Math.min(1,(v-lo)/range));
+  const pctHi=((hi-v)/range)*100, pctLo=((v-lo)/range)*100;
+  const u=UNITS[feat]||"";
+  if(v>hi)  return{barPct:100,  barColor:"#ef4444",hintCls:"danger",  pctLabel:"OVER MAX",            hint:`⛔ Above maximum limit (${hi}${u}). Safety threshold breached — shut down or reduce load immediately.`};
+  if(pctHi<10)return{barPct:norm*100,barColor:"#ef4444",hintCls:"danger",  pctLabel:`${pctHi.toFixed(1)}% to max`, hint:`🔴 Critical — only ${pctHi.toFixed(1)}% below the upper limit (${hi}${u}). A fault will trigger imminently.`};
+  if(pctHi<20)return{barPct:norm*100,barColor:"#f59e0b",hintCls:"caution", pctLabel:`${pctHi.toFixed(1)}% to max`, hint:`⚠ Approaching upper limit (${hi}${u}) — ${pctHi.toFixed(1)}% headroom remaining. Monitor closely.`};
+  if(v<lo)  return{barPct:0,    barColor:"#06b6d4",hintCls:"danger",  pctLabel:"UNDER MIN",           hint:`⛔ Below minimum limit (${lo}${u}). Safety threshold breached — check sensor or power supply.`};
+  if(pctLo<10)return{barPct:norm*100,barColor:"#06b6d4",hintCls:"low",     pctLabel:`${pctLo.toFixed(1)}% from min`,hint:`🔵 Critical — only ${pctLo.toFixed(1)}% above the lower limit (${lo}${u}). Risk of stall/under-voltage.`};
+  if(pctLo<20)return{barPct:norm*100,barColor:"#f59e0b",hintCls:"caution", pctLabel:`${pctLo.toFixed(1)}% from min`,hint:`⚠ Near lower limit (${lo}${u}) — ${pctLo.toFixed(1)}% headroom remaining. Check supply conditions.`};
+  return      {barPct:norm*100,barColor:"#10b981",hintCls:"ok",      pctLabel:`${pctHi.toFixed(0)}% to max`, hint:`✓ Comfortably within safe range (${lo}–${hi}${u}). ${pctLo.toFixed(0)}% above lower, ${pctHi.toFixed(0)}% below upper limit.`};
+}
+
+function renderProximity(feat, v) {
+  const el=document.getElementById("det-proximity");
+  if(!el)return;
+  const info=getProximityInfo(feat,v);
+  if(!info){el.innerHTML="";return;}
+  const limits=SAFETY_LIMITS[feat], u=UNITS[feat]||"";
+  el.innerHTML=`
+    <div class="det-proximity">
+      <div class="det-prox-header">
+        <span class="det-prox-label">Threshold Proximity</span>
+        <span class="det-prox-pct" style="color:${info.barColor}">${info.pctLabel}</span>
+      </div>
+      <div class="det-prox-limits"><span>${limits?limits[0]+u:""}</span><span>${limits?limits[1]+u:""}</span></div>
+      <div class="det-prox-track">
+        <div class="det-prox-fill" id="prox-fill" style="width:${Math.max(1.5,info.barPct)}%;background:${info.barColor}"></div>
+      </div>
+      <div class="det-prox-hint ${info.hintCls}">${info.hint}</div>
+    </div>`;
+}
+
+/* ════════════════════════════════════════════════
+   DETAIL OVERLAY
+   ════════════════════════════════════════════════ */
 function openDetail(feat){
   detMetric=feat;
   const color=COLORS[feat], r=RANGES[feat];
   const vals=latestData?.values||{};
   const v=vals[feat];
   const s=SS[feat];
-  const isFault=(latestData?.faults||[]).includes(feat);
+  const isFault=(latestData?.faults||[]).some(f=>f.feature===feat);
 
   document.getElementById("d-name").textContent=feat;
   document.getElementById("d-unit").textContent=UNITS[feat];
   document.getElementById("d-val").textContent=v!=null?Number(v).toFixed(2):"—";
   document.getElementById("d-val").style.color=color;
-
   document.getElementById("ds-now").textContent=v!=null?`${Number(v).toFixed(3)} ${UNITS[feat]}`:"—";
   document.getElementById("ds-min").textContent=s.n?`${s.min.toFixed(2)} ${UNITS[feat]}`:"—";
   document.getElementById("ds-max").textContent=s.n?`${s.max.toFixed(2)} ${UNITS[feat]}`:"—";
@@ -406,30 +672,24 @@ function openDetail(feat){
     ?`<div class="det-badge bad">⚠ Fault Detected on ${feat}</div>`
     :`<div class="det-badge ok">✓ ${feat} within normal range</div>`;
 
-  // Clone the mini chart data so we start with history
-  const existingData=miniCharts[feat]?.data.datasets[0].data.slice()||[];
+  renderProximity(feat, v);
 
+  // Fire AI diagnosis immediately
+  const aiContainer = document.getElementById("det-ai");
+  renderAILoading(aiContainer);
+  fetchDetailDiagnosis(feat, v, latestData?.values, latestData?.status, latestData?.faults)
+    .then(diag => renderAIResult(aiContainer, diag));
+
+  const existingData=miniCharts[feat]?.data.datasets[0].data.slice()||[];
   if(detChart){detChart.destroy();detChart=null;}
   const ctx=document.getElementById("det-chart").getContext("2d");
   detChart=new Chart(ctx,{
     type:"line",
-    data:{
-      labels:existingData.map((_,i)=>i),
-      datasets:[{
-        data:[...existingData],
-        borderColor:color,borderWidth:2,tension:.4,pointRadius:0,
-        fill:{target:"origin",above:color+"14"},
-      }]
-    },
+    data:{labels:existingData.map((_,i)=>i),datasets:[{data:[...existingData],borderColor:color,borderWidth:2,tension:.4,pointRadius:0,fill:{target:"origin",above:color+"14"}}]},
     options:{
       responsive:true,maintainAspectRatio:false,animation:false,
-      plugins:{legend:{display:false},tooltip:{enabled:true,backgroundColor:"#181c24",titleColor:"#94a3b8",bodyColor:"#e2e8f0",borderColor:"#2a3040",borderWidth:1,
-        callbacks:{label:c=>`${c.parsed.y.toFixed(3)} ${UNITS[feat]}`}}},
-      scales:{
-        x:{display:false},
-        y:{min:r.min,max:r.max,grid:{color:"rgba(255,255,255,.04)"},
-          ticks:{color:"#475569",font:{family:"Space Mono",size:9},callback:v=>`${v}${UNITS[feat]}`}}
-      }
+      plugins:{legend:{display:false},tooltip:{enabled:true,backgroundColor:"#181c24",titleColor:"#94a3b8",bodyColor:"#e2e8f0",borderColor:"#2a3040",borderWidth:1,callbacks:{label:c=>`${c.parsed.y.toFixed(3)} ${UNITS[feat]}`}}},
+      scales:{x:{display:false},y:{min:r.min,max:r.max,grid:{color:"rgba(255,255,255,.04)"},ticks:{color:"#475569",font:{family:"Space Mono",size:9},callback:v=>`${v}${UNITS[feat]}`}}}
     }
   });
 
@@ -454,6 +714,16 @@ function tickDetail(){
     document.getElementById("ds-max").textContent=`${s.max.toFixed(2)} ${UNITS[detMetric]}`;
     document.getElementById("ds-avg").textContent=`${(s.sum/s.n).toFixed(2)} ${UNITS[detMetric]}`;
   }
+  // Live update proximity bar
+  const info=getProximityInfo(detMetric,v);
+  if(info){
+    const fill=document.getElementById("prox-fill");
+    const pctEl=document.querySelector(".det-prox-pct");
+    const hintEl=document.querySelector(".det-prox-hint");
+    if(fill){fill.style.width=`${Math.max(1.5,info.barPct)}%`;fill.style.background=info.barColor;}
+    if(pctEl){pctEl.textContent=info.pctLabel;pctEl.style.color=info.barColor;}
+    if(hintEl){hintEl.textContent=info.hint;hintEl.className=`det-prox-hint ${info.hintCls}`;}
+  }
   detChart.update("none");
 }
 
@@ -464,64 +734,72 @@ function closeDetail(){
 }
 window._overlayClick=e=>{if(e.target===document.getElementById("overlay"))closeDetail();};
 
-/* ─── Toasts ────────────────────────────────────── */
-function toast(type,title,msg){
+/* ════════════════════════════════════════════════
+   TOASTS
+   ════════════════════════════════════════════════ */
+function toast(type, title, msg, withAI=false, aiCtx=null) {
   const c=document.getElementById("toasts");
   const t=document.createElement("div");
   t.className=`toast ${type}`;
-  t.innerHTML=`<div class="toast-title">${title}</div><div class="toast-msg">${msg}</div>`;
+  const aiSlot = withAI
+    ? `<div class="toast-ai"><div class="toast-ai-loading"><div class="ai-typing-dots"><span></span><span></span><span></span></div>AI analysing…</div></div>`
+    : "";
+  t.innerHTML=`<div class="toast-title">${title}</div><div class="toast-msg">${msg}</div>${aiSlot}`;
   t.onclick=()=>t.remove();
   c.appendChild(t);
-  setTimeout(()=>{t.style.transition="opacity .4s";t.style.opacity="0";setTimeout(()=>t.remove(),400);},6000);
+  if(withAI && aiCtx) enrichToast(t, aiCtx.status, aiCtx.faults, aiCtx.values);
+  setTimeout(()=>{t.style.transition="opacity .4s";t.style.opacity="0";setTimeout(()=>t.remove(),400);},12000);
 }
+
 function maybeToast(d){
   const now=Date.now();
   if(d.status===lastStatus||now-lastToastTs<TOAST_CD)return;
   lastToastTs=now;
-  if(d.status==="Fault")  toast("fault","⚠ Fault Detected",(d.faults||[]).join(", ")||"Unknown");
-  if(d.status==="Warning")toast("warning","⚠ Warning","Unusual readings detected");
-  if(d.status==="Normal"&&lastStatus!=="Normal")toast("","✓ Recovered","System back to normal");
+  if(d.status==="Fault"){
+    const faultList=(d.faults||[]).map(f=>`${f.feature} (${f.type})`).join(", ")||"Unknown";
+    toast("fault","⚠ Fault Detected",faultList,true,{status:d.status,faults:d.faults,values:d.values});
+  }
+  if(d.status==="Warning"){
+    const faultList=(d.faults||[]).map(f=>`${f.feature} (${f.type})`).join(", ")||"Pattern deviation";
+    toast("warning","⚠ Warning",faultList,true,{status:d.status,faults:d.faults,values:d.values});
+  }
+  if(d.status==="Normal"&&lastStatus!=="Normal") toast("","✓ Recovered","System back to normal.",false);
 }
 function maybePredToast(d){
   if(!d.prediction||d.status!=="Normal")return;
   const k="pt_"+Math.floor(Date.now()/30000);
   if(sessionStorage.getItem(k))return;
   sessionStorage.setItem(k,"1");
-  toast("predict","⚑ Pattern Alert","Rising error trend — monitor for developing fault");
+  toast("predict","⚑ Pattern Alert","Rising error trend detected.",true,{status:"Prediction",faults:d.faults,values:d.values});
 }
 
-/* ─── Beep ──────────────────────────────────────── */
+/* ════════════════════════════════════════════════
+   BEEP / CONN / API / LOOP / INIT
+   ════════════════════════════════════════════════ */
 function beep(hz=660,dur=.35){
   try{const a=new AudioContext(),o=a.createOscillator(),g=a.createGain();
   o.frequency.value=hz;g.gain.setValueAtTime(.2,a.currentTime);
   g.gain.exponentialRampToValueAtTime(.001,a.currentTime+dur);
   o.connect(g);g.connect(a.destination);o.start();o.stop(a.currentTime+dur);}catch{}
 }
-
-/* ─── Connection ────────────────────────────────── */
 function setConn(ok){
   document.getElementById("conn-dot").className="conn-dot "+(ok?"online":"offline");
   document.getElementById("conn-lbl").textContent=ok?"Connected":"Disconnected";
 }
-
-/* ─── API ───────────────────────────────────────── */
 async function fetchData(){try{const r=await fetch(`${API}/data`);return r.ok?r.json():null;}catch{return null;}}
 async function fetchHealth(){try{const r=await fetch(`${API}/health`);return r.ok?r.json():null;}catch{return null;}}
 
-/* ─── Main loop ─────────────────────────────────── */
 async function loop(){
   const d=await fetchData();
   if(!d){setConn(false);return;}
   setConn(true);
   latestData=d;
-
   updateStatus(d.status,d.faults,d.prediction,d.mse);
   updateMinis(d.values,d.faults);
   updateMSE(d.mse_history);
   updateEvList(d.history);
   updateHistPage(d.history);
   tickDetail();
-
   maybeToast(d);
   maybePredToast(d);
   if(d.status!==lastStatus){
@@ -531,22 +809,18 @@ async function loop(){
   }
 }
 
-/* ─── Init ──────────────────────────────────────── */
 buildGrid();
 buildMSE();
 loop();
 setInterval(loop,1000);
 setInterval(()=>{document.getElementById("clock").textContent=new Date().toLocaleTimeString();},1000);
 document.getElementById("clock").textContent=new Date().toLocaleTimeString();
-
 fetchHealth().then(h=>{
   if(!h)return;
   const p=document.getElementById("mode-pill");
   p.textContent=h.mode==="real"?"REAL":"DEMO";
   p.className="mode-pill "+(h.mode==="real"?"real":"");
 });
-
-/* ─── Navigation ────────────────────────────────── */
 window.showPage=function(id,btn){
   document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
   document.getElementById(id).classList.add("active");
