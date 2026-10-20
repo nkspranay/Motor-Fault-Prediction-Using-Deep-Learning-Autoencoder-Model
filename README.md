@@ -29,7 +29,7 @@ MOTOR_PM/
 
 | Sensor      | Sensor Pin | ESP32 GPIO | Notes                              |
 |-------------|------------|------------|------------------------------------|
-| ACS712 30A  | OUT        | GPIO 34    | ADC1 only                          |
+| ACS712 20A  | OUT        | GPIO 34    | ADC1 only                          |
 |             | VCC        | 3.3V       |                                    |
 |             | GND        | GND        |                                    |
 | ZMPT101B    | OUT        | GPIO 35    | ADC1 only                          |
